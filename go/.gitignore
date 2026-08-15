@@ -1,0 +1,3 @@
+dist/
+*.exe
+config.json

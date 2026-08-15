@@ -1,6 +1,12 @@
-node_modules/
-dist/
-.sea-cache/
-config.json
-proxy.log
-proxy.err
+# Node 版
+node/node_modules/
+node/dist/
+node/.sea-cache/
+node/config.json
+node/proxy.log
+node/proxy.err
+
+# Go 版
+go/dist/
+go/*.exe
+go/config.json

@@ -1,7 +1,7 @@
 name: Release
 
-# 推送 v* 标签（如 v1.1.0）时自动构建全部跨平台单文件程序并发布到 GitHub Release；
-# 也可在 Actions 页面手动触发（需填写 version，如 v1.1.0）。
+# 推送 v* 标签（如 v1.1.0）时自动构建 Node 版 + Go 版全部跨平台单文件程序，
+# 并发布到 GitHub Release；也可在 Actions 页面手动触发（需填写 version，如 v1.1.0）。
 on:
   push:
     tags:
@@ -18,35 +18,53 @@ permissions:
 
 jobs:
   build-and-release:
-    name: 构建并发布 Release
-    runs-on: ubuntu-latest # SEA 跨平台构建，一个 runner 即可产出全部 5 个目标
+    name: 构建并发布 Release（Node + Go）
+    runs-on: ubuntu-latest # SEA 与 Go 均支持跨平台构建，一个 runner 产出全部 10 个文件
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
+      # ---------------------------- Node 版 ----------------------------
       - name: 安装 Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: node/package-lock.json
 
-      - name: 安装依赖
+      - name: 安装 Node 依赖
+        working-directory: node
         run: npm ci
 
-      - name: 缓存 Node 二进制下载（.sea-cache）
+      - name: 缓存 Node 二进制下载（node/.sea-cache）
         uses: actions/cache@v4
         with:
-          path: .sea-cache
+          path: node/.sea-cache
           key: sea-cache-${{ runner.os }}-22
 
-      - name: 构建全部目标（win/linux/macos 共 5 个单文件）
+      - name: 构建 Node 版（SEA 单文件，5 平台）
+        working-directory: node
         run: node build.js
 
-      - name: 生成校验和
+      # ---------------------------- Go 版 ----------------------------
+      - name: 安装 Go（版本取 go/go.mod）
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache: true
+
+      - name: 构建 Go 版（静态交叉编译，5 平台）
+        working-directory: go
+        run: pwsh -File ./build.ps1
+
+      # ---------------------------- 发布 ----------------------------
+      - name: 汇总产物并生成校验和
         run: |
-          cd dist
+          mkdir -p release-assets
+          cp node/dist/dsh-proxy-* go/dist/dsh-proxy-* release-assets/
+          cd release-assets
           sha256sum dsh-proxy-* > SHA256SUMS.txt
-          cat SHA256SUMS.txt
+          ls -la
 
       - name: 发布到 GitHub Release
         env:
@@ -60,7 +78,7 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
             EXTRA=""
           fi
-          cd dist
+          cd release-assets
           # 首次创建 Release；若已存在（如重跑）则改为补传/覆盖资产
           gh release create "$TAG" dsh-proxy-* SHA256SUMS.txt \
             --generate-notes --title "dsh-proxy $TAG" $EXTRA \
