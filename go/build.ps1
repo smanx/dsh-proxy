@@ -5,7 +5,7 @@ param(
     [string]$Target = ""
 )
 
-# 保证从任意目录调用都相对于脚本自身执行
+# Run from the script's own directory no matter where it is invoked from
 Set-Location $PSScriptRoot
 
 $targets = @(
@@ -24,7 +24,8 @@ if ($Target -ne '') {
 New-Item -ItemType Directory -Force -Path dist | Out-Null
 
 foreach ($t in $targets) {
-    $out = "dist/dsh-proxy-$($t.name)$($t.ext)"
+    # Go artifacts are prefixed with -go to avoid name collision with the Node build (dsh-proxy-<platform>)
+    $out = "dist/dsh-proxy-go-$($t.name)$($t.ext)"
     Write-Host "[build] $($t.name) -> $out"
     $env:GOOS = $t.os
     $env:GOARCH = $t.arch

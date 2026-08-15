@@ -61,7 +61,9 @@ jobs:
       - name: 汇总产物并生成校验和
         run: |
           mkdir -p release-assets
-          cp node/dist/dsh-proxy-* go/dist/dsh-proxy-* release-assets/
+          # Node 版产物为 dsh-proxy-<平台>，Go 版产物为 dsh-proxy-go-<平台>（已避免同名冲突）
+          cp node/dist/dsh-proxy-* release-assets/
+          cp go/dist/dsh-proxy-go-* release-assets/
           cd release-assets
           sha256sum dsh-proxy-* > SHA256SUMS.txt
           ls -la

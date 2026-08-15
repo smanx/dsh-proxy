@@ -24,23 +24,23 @@ dsh-proxy 的 **Go 轻量版**：HTTP + WebSocket 反向代理（转发到本地
 .\build.ps1 -Target win-x64   # 只构建 Windows
 ```
 
-产物（`dist/`，纯静态链接，无需任何运行时）：
+产物（`dist/`，纯静态链接，无需任何运行时；文件名带 `-go` 前缀以区分 Node 版）：
 
 | 文件 | 平台 |
 |---|---|
-| `dsh-proxy-win-x64.exe` | Windows 64 位 |
-| `dsh-proxy-linux-x64` | Linux x64 |
-| `dsh-proxy-linux-arm64` | Linux ARM64 |
-| `dsh-proxy-macos-x64` | macOS Intel |
-| `dsh-proxy-macos-arm64` | macOS Apple Silicon |
+| `dsh-proxy-go-win-x64.exe` | Windows 64 位 |
+| `dsh-proxy-go-linux-x64` | Linux x64 |
+| `dsh-proxy-go-linux-arm64` | Linux ARM64 |
+| `dsh-proxy-go-macos-x64` | macOS Intel |
+| `dsh-proxy-go-macos-arm64` | macOS Apple Silicon |
 
 macOS/Linux 版传到对应系统后先 `chmod +x`。
 
 ## 验证
 
 ```bash
-# 免交互启动（示例端口 3091）
-./dsh-proxy --source-port 3080 --target-port 3091 --user admin --pass admin
+# 免交互启动（示例端口 3091，Windows）
+./dsh-proxy-go-win-x64.exe --source-port 3080 --target-port 3091 --user admin --pass admin
 
 # 无凭据 → 401；带凭据 → 200
 curl -i http://127.0.0.1:3091/

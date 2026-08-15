@@ -10,3 +10,6 @@ node/proxy.err
 go/dist/
 go/*.exe
 go/config.json
+
+# CI 临时目录
+release-assets/

@@ -36,7 +36,10 @@ cd go
 ./build.ps1 -Target win-x64
 ```
 
-产物清单（两个版本各 5 个平台）：`win-x64`、`linux-x64`、`linux-arm64`、`macos-x64`、`macos-arm64`。
+产物清单（两个版本各 5 个平台：`win-x64`、`linux-x64`、`linux-arm64`、`macos-x64`、`macos-arm64`）：
+- Node 版：`dsh-proxy-<平台>`（如 `dsh-proxy-win-x64.exe`）
+- Go 版：`dsh-proxy-go-<平台>`（如 `dsh-proxy-go-win-x64.exe`，避免与 Node 版同名）
+
 macOS/Linux 版传到对应系统后先 `chmod +x`。
 
 ## 自动发布
