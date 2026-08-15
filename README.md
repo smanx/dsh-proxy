@@ -18,7 +18,7 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
 - Basic Auth（默认 `admin/admin`，HTTP 与 WS 握手统一校验）
 - Origin 对齐 + Host 改写（通过 DSH `/api` 同源校验，LAN 访问 WS 不 403）
 - HTML 注入 `crypto.randomUUID` polyfill（LAN 非安全上下文下实时通道可用）
-- 交互式启动：4 项配置预填可编辑（源端口 3080 / 目标端口 3081 / admin / admin）
+- 交互式启动：4 项配置预填可编辑（源端口 3080 / 目标端口 3081 / admin / admin），**端口与账号密码均可手动修改**
 - 配置记忆：`config.json` 存于可执行文件同目录，下次启动自动预填
 - CLI 免交互参数（供计划任务/自动化）：
   `dsh-proxy --source-port 3080 --target-port 3081 --user admin --pass admin`
