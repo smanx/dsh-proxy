@@ -42,6 +42,9 @@ cd go
 
 macOS/Linux 版传到对应系统后先 `chmod +x`。
 
+启动横幅显示的版本号在打包时注入：CI 自动取标签版本（如 `v1.1.0`）；
+本地构建可用 `-Version`（Go）或 `--version`（Node）指定，缺省取最近 git 标签。
+
 ## 自动发布
 
 推送 `v*` 标签（如 `v1.1.0`）即触发 GitHub Actions，**同时构建 Node 版和 Go 版**

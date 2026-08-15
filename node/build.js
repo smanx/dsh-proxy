@@ -29,6 +29,9 @@ const TARGETS = [
   { name: 'macos-arm64', sub: `node-v${NODE_VER}-darwin-arm64`, dl: `node-v${NODE_VER}-darwin-arm64.tar.gz`, file: 'bin/node', ext: '', macho: true },
 ];
 
+// 打包注入的版本号（--version 参数 / DSH_PROXY_VERSION 环境变量），为空则不注入
+let BUILD_VERSION = '';
+
 // ---------------------------------------------------------------- 工具函数
 function log(msg) {
   console.log(`[build] ${msg}`);
@@ -133,7 +136,7 @@ async function ensureNodeBinary(target) {
 async function bundle() {
   log('esbuild 打包 app.js（含 http-proxy）…');
   const esbuild = require('esbuild');
-  await esbuild.build({
+  const opts = {
     entryPoints: [path.join(ROOT, 'app.js')],
     bundle: true,
     platform: 'node',
@@ -141,7 +144,13 @@ async function bundle() {
     minify: true,
     outfile: BUNDLE,
     logLevel: 'info',
-  });
+  };
+  // 版本注入：--version 参数 > DSH_PROXY_VERSION 环境变量 > 不注入（回退 package.json）
+  if (BUILD_VERSION) {
+    opts.define = { 'process.env.DSH_PROXY_VERSION': JSON.stringify(BUILD_VERSION) };
+    log(`版本号：${BUILD_VERSION}`);
+  }
+  await esbuild.build(opts);
 }
 
 async function makeBlob() {
@@ -189,6 +198,12 @@ async function main() {
     console.error(`未知目标: ${unknown.join(', ')}；可选: ${TARGETS.map((t) => t.name).join(', ')}`);
     process.exit(1);
   }
+
+  // 版本号：--version 参数 > DSH_PROXY_VERSION 环境变量 > 不注入（app.js 回退 package.json）
+  const vIdx = argv.indexOf('--version');
+  BUILD_VERSION = vIdx !== -1 && argv[vIdx + 1] !== undefined
+    ? String(argv[vIdx + 1]).replace(/^v/, '')
+    : (process.env.DSH_PROXY_VERSION ? String(process.env.DSH_PROXY_VERSION).replace(/^v/, '') : '');
 
   fs.mkdirSync(DIST, { recursive: true });
   fs.mkdirSync(CACHE, { recursive: true });

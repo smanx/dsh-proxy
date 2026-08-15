@@ -21,7 +21,9 @@ import (
 	"golang.org/x/term"
 )
 
-const version = "1.0.0"
+// 版本号：打包时通过 -ldflags "-X main.version=<版本>" 注入（见 build.ps1）；
+// 未注入时显示 dev。
+var version = "dev"
 
 // ------------------------------------------------ 配置记忆（exe 同目录 config.json）
 

@@ -8,7 +8,9 @@ const fs = require('fs');
 const readline = require('readline');
 const { startProxy } = require('./proxy-core');
 
-const VERSION = require('./package.json').version;
+// 版本号：打包时由 build.js 通过 esbuild define 注入 process.env.DSH_PROXY_VERSION；
+// 未注入时（直接 node app.js 运行）回退到 package.json 的版本。
+const VERSION = process.env.DSH_PROXY_VERSION || require('./package.json').version;
 
 const DEFAULTS = { sourcePort: 3080, targetPort: 3081, username: 'admin', password: 'admin' };
 

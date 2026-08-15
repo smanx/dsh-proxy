@@ -44,7 +44,12 @@ jobs:
 
       - name: 构建 Node 版（SEA 单文件，5 平台）
         working-directory: node
-        run: node build.js
+        env:
+          DSH_PROXY_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          # 版本号注入：标签触发用 GITHUB_REF_NAME（去 v 前缀），手动触发用输入的 version
+          VERSION="${DSH_PROXY_VERSION:-${GITHUB_REF_NAME#v}}"
+          node build.js --version "$VERSION"
 
       # ---------------------------- Go 版 ----------------------------
       - name: 安装 Go（版本取 go/go.mod）
@@ -55,7 +60,11 @@ jobs:
 
       - name: 构建 Go 版（静态交叉编译，5 平台）
         working-directory: go
-        run: pwsh -File ./build.ps1
+        env:
+          DSH_PROXY_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          VERSION="${DSH_PROXY_VERSION:-${GITHUB_REF_NAME#v}}"
+          pwsh -File ./build.ps1 -Version "$VERSION"
 
       # ---------------------------- 发布 ----------------------------
       - name: 汇总产物并生成校验和

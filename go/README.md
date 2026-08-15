@@ -22,7 +22,10 @@ dsh-proxy 的 **Go 轻量版**：HTTP + WebSocket 反向代理（转发到本地
 ```powershell
 .\build.ps1            # 全部 5 个平台
 .\build.ps1 -Target win-x64   # 只构建 Windows
+.\build.ps1 -Version 1.2.3    # 指定启动横幅显示的版本号
 ```
+
+版本号注入：`-Version` 参数 > `DSH_PROXY_VERSION` 环境变量 > 最近 git 标签（`git describe --tags`）> `dev`。
 
 产物（`dist/`，纯静态链接，无需任何运行时；文件名带 `-go` 前缀以区分 Node 版）：
 
