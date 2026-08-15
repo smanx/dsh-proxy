@@ -1,0 +1,67 @@
+name: Release
+
+# 推送 v* 标签（如 v1.1.0）时自动构建全部跨平台单文件程序并发布到 GitHub Release；
+# 也可在 Actions 页面手动触发（需填写 version，如 v1.1.0）。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号（仅手动触发时使用，如 v1.1.0）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write # gh release 需要写 Release 的权限
+
+jobs:
+  build-and-release:
+    name: 构建并发布 Release
+    runs-on: ubuntu-latest # SEA 跨平台构建，一个 runner 即可产出全部 5 个目标
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 缓存 Node 二进制下载（.sea-cache）
+        uses: actions/cache@v4
+        with:
+          path: .sea-cache
+          key: sea-cache-${{ runner.os }}-22
+
+      - name: 构建全部目标（win/linux/macos 共 5 个单文件）
+        run: node build.js
+
+      - name: 生成校验和
+        run: |
+          cd dist
+          sha256sum dsh-proxy-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: 发布到 GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 标签触发用标签名；手动触发用输入的 version（标记为 prerelease）
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            TAG="${{ github.event.inputs.version }}"
+            EXTRA="--prerelease"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            EXTRA=""
+          fi
+          cd dist
+          # 首次创建 Release；若已存在（如重跑）则改为补传/覆盖资产
+          gh release create "$TAG" dsh-proxy-* SHA256SUMS.txt \
+            --generate-notes --title "dsh-proxy $TAG" $EXTRA \
+          || gh release upload "$TAG" dsh-proxy-* SHA256SUMS.txt --clobber

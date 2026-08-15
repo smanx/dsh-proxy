@@ -63,6 +63,19 @@ npm run build:win    # 只构建 Windows 版
 SmartScreen「未知发布者」提示（更多信息 → 仍要运行），macOS 首次运行如被 Gatekeeper
 拦截（右键 → 打开）。
 
+### GitHub Actions 自动发布
+
+推送 `v*` 标签（如 `v1.1.0`）即自动构建全部 5 个目标并发布到 GitHub Release
+（含 SHA256SUMS.txt 校验和），也可在 Actions 页面手动触发（需填 version，标记为 prerelease）：
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+工作流见 `.github/workflows/release.yml`；构建所需 Node 二进制会缓存于 `.sea-cache/`，
+重复构建不再下载。
+
 ## 二、源码方式（环境变量版）
 
 ```bash

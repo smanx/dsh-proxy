@@ -88,10 +88,29 @@ async function downloadAny(urls, dest) {
   throw lastErr || new Error('所有镜像均下载失败');
 }
 
+async function extractArchive(archive, dest) {
+  if (archive.endsWith('.zip')) {
+    // zip 用纯 JS 解压：Linux 的 GNU tar 不支持 zip，Windows/macOS 的 bsdtar 虽支持，
+    // 但统一走 extract-zip 保证任意平台可构建
+    const extract = require('extract-zip');
+    await extract(archive, { dir: dest });
+  } else {
+    execSync(`tar -xf "${archive}" -C "${dest}"`, { stdio: 'inherit' });
+  }
+}
+
 async function ensureNodeBinary(target) {
-  // win-x64 且本机就是 win32/x64 时直接用本地 node.exe，省一次下载
+  // win-x64 且本机就是 win32/x64 时优先直接用本地 node.exe（省一次下载）；
+  // 若被占用/锁定（EBUSY，如杀毒扫描或 node 进程正在运行），自动改用下载
   if (target.name === 'win-x64' && process.platform === 'win32' && process.arch === 'x64') {
-    return process.execPath;
+    try {
+      const probe = path.join(CACHE, 'probe-node.exe');
+      fs.copyFileSync(process.execPath, probe);
+      fs.rmSync(probe, { force: true });
+      return process.execPath;
+    } catch {
+      log('本机 node.exe 被占用/锁定，改用下载 win-x64 二进制');
+    }
   }
   const archive = path.join(CACHE, target.dl);
   if (!fs.existsSync(archive) || fs.statSync(archive).size === 0) {
@@ -103,7 +122,7 @@ async function ensureNodeBinary(target) {
   if (!fs.existsSync(nodePath)) {
     log(`解压 ${target.dl} …`);
     fs.mkdirSync(extractDir, { recursive: true });
-    execSync(`tar -xf "${archive}" -C "${extractDir}"`, { stdio: 'inherit' });
+    await extractArchive(archive, extractDir);
   }
   if (!fs.existsSync(nodePath)) {
     throw new Error(`解压后找不到 ${nodePath}`);
