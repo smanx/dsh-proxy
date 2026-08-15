@@ -1,0 +1,23 @@
+{
+  "name": "dsh-proxy",
+  "version": "1.1.0",
+  "description": "HTTP + WebSocket 反向代理：将 0.0.0.0:3081 转发到本地 DSH 服务 127.0.0.1:3080；支持打包为跨平台单文件程序",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "app": "node app.js",
+    "build": "node build.js",
+    "build:win": "node build.js --targets win-x64"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "postject": "^1.0.0-alpha.6"
+  },
+  "license": "MIT"
+}
