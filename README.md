@@ -1,5 +1,7 @@
 # dsh-proxy
 
+> 面向使用者的快速上手与下载指引见 **[GUIDE.md](GUIDE.md)**（项目简介、下载地址、快速开始）。
+
 HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `127.0.0.1:3080`。
 支持 Basic Auth、局域网访问、`crypto.randomUUID` polyfill 注入。
 
