@@ -152,6 +152,6 @@ node -e "const ws=new WebSocket('ws://127.0.0.1:3081/api/events.mux',{headers:{A
 - `proxy.on('proxyRes', ...)` 对 text/html 响应注入 `crypto.randomUUID` polyfill。
 - 认证始终启用（打包版默认 admin/admin）；旧版计划任务托管方式：
   修改任务 `dsh-proxy` 的操作为
-  `cmd /c set PROXY_USERNAME=yourname&& set PROXY_PASSWORD=yourpass&& cd /d C:\mydata\codes\dsh-proxy && node index.js >> proxy.log 2>> proxy.err`，
-  或改用打包版 `dsh-proxy-win-x64.exe --source-port ... --target-port ... --user ... --pass ...`。
+  `cmd /c set PROXY_USERNAME=yourname&& set PROXY_PASSWORD=yourpass&& cd /d C:\mydata\codes\dsh-proxy\node && node index.js >> proxy.log 2>> proxy.err`，
+  或改用打包版 `dsh-proxy-win-x64.exe --source-port ... --target-port ... --user ... --pass ...`（更推荐用 `../go` 的轻量版）。
 - 目录结构：`index.js` 环境变量入口、`app.js` 交互入口、`proxy-core.js` 代理核心（两者共用）、`build.js` 打包脚本。
