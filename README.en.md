@@ -22,7 +22,7 @@ Supports Basic Auth, LAN access, and `crypto.randomUUID` polyfill injection.
 **Online install (recommended)** — directly from GitHub, no need to download the repository:
 
 ```bash
-dsh plugin --profile web add github:smanx/dsh-proxy#main
+dsh plugin --profile web add github:smanx/dsh-proxy#master
 ```
 
 **Local install** (repository cloned/downloaded on this machine):

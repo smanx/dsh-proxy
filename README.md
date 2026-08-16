@@ -22,7 +22,7 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
 **在线安装（推荐）**——直接从 GitHub 安装（无需下载仓库）：
 
 ```bash
-dsh plugin --profile web add github:smanx/dsh-proxy#main
+dsh plugin --profile web add github:smanx/dsh-proxy#master
 ```
 
 **本地安装**（仓库已克隆/下载到本机）：

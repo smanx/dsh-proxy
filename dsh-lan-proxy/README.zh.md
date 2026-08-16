@@ -17,7 +17,7 @@ DSH 插件：把 DeepSeek Harness Web 界面（默认 `127.0.0.1:3080`）转发�
 **在线安装（推荐）**——直接从 GitHub 安装（无需下载仓库）：
 
 ```bash
-dsh plugin --profile web add github:smanx/dsh-proxy#main
+dsh plugin --profile web add github:smanx/dsh-proxy#master
 ```
 
 **本地安装**（仓库已克隆/下载到本机）：

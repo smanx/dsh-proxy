@@ -17,7 +17,7 @@ A DeepSeek Harness plugin that exposes the local DSH web app (default `127.0.0.1
 **Online install (recommended)** — directly from GitHub, no need to download the repository:
 
 ```bash
-dsh plugin --profile web add github:smanx/dsh-proxy#main
+dsh plugin --profile web add github:smanx/dsh-proxy#master
 ```
 
 **Local install** (repository cloned/downloaded on this machine):
