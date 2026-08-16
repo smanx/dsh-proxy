@@ -228,6 +228,33 @@ describe('ProxyController start failure', () => {
   })
 })
 
+describe('ProxyController start/stop controls', () => {
+  it('stops and restarts the service, keeping the target probe independent', async () => {
+    const upstreamPort = await startUpstream('A')
+    controller = new ProxyController({ base: baseOptions(upstreamPort), settingsFile: tempSettingsFile(), log: () => {} })
+    await controller.start()
+    expect(controller.status().proxyListening).toBe(true)
+
+    await controller.stop()
+    expect(controller.status().proxyListening).toBe(false)
+    const probed = await controller.refreshStatus()
+    expect(probed.upstreamReachable).toBe(true)
+
+    await controller.start()
+    expect(controller.status().proxyListening).toBe(true)
+  })
+
+  it('stopDeferred reports stopped immediately and closes the listener shortly after', async () => {
+    const upstreamPort = await startUpstream('A')
+    controller = new ProxyController({ base: baseOptions(upstreamPort), settingsFile: tempSettingsFile(), log: () => {} })
+    await controller.start()
+    const status = controller.stopDeferred(0)
+    expect(status.proxyListening).toBe(false)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(controller.status().proxyListening).toBe(false)
+  })
+})
+
 function basic(username: string, password: string): string {
   return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
 }

@@ -254,6 +254,21 @@ async function pluginContractPhase() {
     )
     check('conflicting upstream port rejected by the channel', conflict?.ok === false, JSON.stringify(conflict))
 
+    const stopped = await registered.handler('stop', {}, new AbortController().signal)
+    check(
+      'RPC stop answers with the proxy stopped',
+      stopped?.ok === true && stopped.value?.proxyListening === false,
+      JSON.stringify(stopped),
+    )
+    // Let the deferred listener close, then bring it back up.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    const started = await registered.handler('start', {}, new AbortController().signal)
+    check(
+      'RPC start brings the proxy back up',
+      started?.ok === true && started.value?.proxyListening === true,
+      JSON.stringify(started),
+    )
+
     rpcCleanup()
     await proxyDisposer()
   } finally {

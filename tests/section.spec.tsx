@@ -13,7 +13,9 @@ import { SettingsSection, type SettingsSectionProps } from '../src/client/Settin
 import { zh, type LanProxyKey } from '../src/client/locales.ts'
 import {
   RPC_CHANNEL,
+  RPC_START_ENDPOINT,
   RPC_STATUS_ENDPOINT,
+  RPC_STOP_ENDPOINT,
   RPC_UPDATE_ENDPOINT,
   type LanProxyStatus,
 } from '../src/contract.ts'
@@ -39,6 +41,7 @@ const STATUS: LanProxyStatus = {
 function makeRpc(over: {
   status?: (channel: string, endpoint: string, payload: unknown) => Promise<unknown>
   update?: (channel: string, endpoint: string, payload: unknown) => Promise<unknown>
+  control?: (endpoint: string, payload: unknown) => Promise<unknown>
 } = {}): { rpc: ClientConnectionRpc; calls: Array<{ channel: string; endpoint: string; payload: unknown }> } {
   const calls: Array<{ channel: string; endpoint: string; payload: unknown }> = []
   const rpc = {
@@ -46,6 +49,9 @@ function makeRpc(over: {
       calls.push({ channel, endpoint, payload })
       if (endpoint === RPC_STATUS_ENDPOINT && over.status) return over.status(channel, endpoint, payload)
       if (endpoint === RPC_UPDATE_ENDPOINT && over.update) return over.update(channel, endpoint, payload)
+      if ((endpoint === RPC_START_ENDPOINT || endpoint === RPC_STOP_ENDPOINT) && over.control) {
+        return over.control(endpoint, payload)
+      }
       return Promise.resolve({ ok: true, value: STATUS })
     }),
   } as unknown as ClientConnectionRpc
@@ -155,6 +161,66 @@ describe('status card', () => {
     await flush()
     expect(mounted.container.textContent ?? '').toContain('3081')
     expect(mounted.container.textContent ?? '').not.toContain('无法连接代理服务')
+  })
+})
+
+describe('start/stop controls', () => {
+  const controlButton = (container: HTMLElement, label: string): HTMLButtonElement =>
+    Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes(label)) as HTMLButtonElement
+
+  it('disables start while running and stop while stopped', async () => {
+    mounted = mount(<SettingsSection {...props(makeRpc().rpc)} />)
+    await flush()
+    expect(controlButton(mounted.container, '启动').disabled).toBe(true)
+    expect(controlButton(mounted.container, '停止').disabled).toBe(false)
+
+    mounted.root.unmount()
+    const stopped = makeRpc({ status: () => Promise.resolve({ ok: true, value: { ...STATUS, proxyListening: false } }) })
+    mounted = mount(<SettingsSection {...props(stopped.rpc)} />)
+    await flush()
+    expect(controlButton(mounted.container, '启动').disabled).toBe(false)
+    expect(controlButton(mounted.container, '停止').disabled).toBe(true)
+  })
+
+  it('stops and starts the proxy through the control buttons', async () => {
+    let running = true
+    const stoppedStatus = { ...STATUS, proxyListening: false }
+    const { rpc, calls } = makeRpc({
+      status: () => Promise.resolve({ ok: true, value: running ? STATUS : stoppedStatus }),
+      control: (endpoint) => {
+        if (endpoint === RPC_STOP_ENDPOINT) {
+          running = false
+          return Promise.resolve({ ok: true, value: stoppedStatus })
+        }
+        running = true
+        return Promise.resolve({ ok: true, value: STATUS })
+      },
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+
+    controlButton(mounted.container, '停止').click()
+    await flush()
+    expect(calls.some((call) => call.endpoint === RPC_STOP_ENDPOINT)).toBe(true)
+    expect(mounted.container.textContent ?? '').toContain('代理服务已停止')
+    expect(controlButton(mounted.container, '启动').disabled).toBe(false)
+
+    controlButton(mounted.container, '启动').click()
+    await flush()
+    expect(calls.some((call) => call.endpoint === RPC_START_ENDPOINT)).toBe(true)
+    expect(mounted.container.textContent ?? '').toContain('代理服务已启动')
+    expect(controlButton(mounted.container, '停止').disabled).toBe(false)
+  })
+
+  it('surfaces a control failure without crashing', async () => {
+    const { rpc } = makeRpc({
+      control: () => Promise.resolve({ ok: false, error: { code: 'internal', message: 'boom', details: {} } }),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+    controlButton(mounted.container, '停止').click()
+    await flush()
+    expect(mounted.container.textContent ?? '').toContain('boom')
   })
 })
 
