@@ -9,6 +9,9 @@
  * Usage: pnpm run smoke   (requires the web app on 127.0.0.1:3080)
  */
 import net from 'node:net'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { startLanProxy } from '../lib/index.cjs'
 
 const UPSTREAM = Number(process.env.DSH_SMOKE_UPSTREAM_PORT ?? 3080)
@@ -149,8 +152,106 @@ async function main() {
     await handle.close()
   }
 
+  await pluginContractPhase()
+
   console.log(`\nsmoke: ${passed} passed, ${failed} failed`)
   process.exit(failed === 0 ? 0 : 1)
+}
+
+/**
+ * Plugin-contract phase: drive the BUNDLED apply() (lib/index.cjs — the same
+ * artifact the profile loads) against a fake cordis ctx, exercising the
+ * /dsh-lan-proxy RPC channel, the settings persistence, and the restart path
+ * end to end without the web app. $DSH_HOME is redirected to a temp dir so
+ * the smoke never touches the user's real persisted config.
+ */
+async function pluginContractPhase() {
+  console.log('\ndsh-lan-proxy plugin contract — bundled apply() with a fake ctx')
+  const plugin = await import('../lib/index.cjs')
+  check(
+    'plugin exports name/inject/Config/apply',
+    ['name', 'inject', 'Config', 'apply'].every((key) => key in plugin)
+      && plugin.name === 'dsh-lan-proxy'
+      && plugin.inject.includes('webServer')
+      && plugin.inject.includes('connection'),
+  )
+
+  const tempHome = mkdtempSync(join(tmpdir(), 'dsh-lan-proxy-smoke-'))
+  process.env.DSH_HOME = tempHome
+  try {
+    let registered = null
+    const effectFns = []
+    const fakeCtx = {
+      webServer: { port: UPSTREAM, host: '127.0.0.1' },
+      connection: {
+        rpc: {
+          handle: (channel, handler, options) => {
+            registered = { channel, handler, options }
+            return async () => {}
+          },
+        },
+      },
+      logger: {
+        info: (message) => console.log(`  [plugin:info] ${message}`),
+        warn: (message) => console.log(`  [plugin:warn] ${message}`),
+        error: (message) => console.log(`  [plugin:error] ${message}`),
+      },
+      effect: (fn) => {
+        effectFns.push(fn)
+        return () => {}
+      },
+    }
+    plugin.apply(fakeCtx, { listenHost: '127.0.0.1', listenPort: 0 })
+    const proxyDisposer = await effectFns[0]()
+    const rpcCleanup = effectFns[1]()
+    check(
+      'RPC channel registered as /dsh-lan-proxy with loopback authority',
+      registered?.channel === '/dsh-lan-proxy' && registered?.options?.authority === 'loopback',
+    )
+
+    const status1 = await registered.handler('status', undefined, new AbortController().signal)
+    check(
+      'RPC status returns ok with a bound port',
+      status1?.ok === true && typeof status1.value?.listenPort === 'number' && status1.value?.listenPort > 0,
+      JSON.stringify(status1),
+    )
+
+    const updated = await registered.handler(
+      'update',
+      { username: 'smoke-user', password: 'smoke-pass' },
+      new AbortController().signal,
+    )
+    check(
+      'RPC update rotates credentials and restarts',
+      updated?.ok === true && updated.value?.status?.username === 'smoke-user',
+      JSON.stringify(updated),
+    )
+
+    const status2 = await registered.handler('status', undefined, new AbortController().signal)
+    check(
+      'status reflects the new username and persisted flag',
+      status2?.ok === true && status2.value?.username === 'smoke-user' && status2.value?.persisted === true,
+    )
+
+    const persisted = JSON.parse(readFileSync(join(tempHome, 'dsh-lan-proxy.json'), 'utf8'))
+    check(
+      'patch persisted to $DSH_HOME/dsh-lan-proxy.json',
+      persisted.username === 'smoke-user' && persisted.password === 'smoke-pass',
+    )
+
+    const conflict = await registered.handler(
+      'update',
+      { upstreamPort: status2.value.listenPort },
+      new AbortController().signal,
+    )
+    check('conflicting upstream port rejected by the channel', conflict?.ok === false, JSON.stringify(conflict))
+
+    rpcCleanup()
+    await proxyDisposer()
+  } finally {
+    delete process.env.DSH_HOME
+    rmSync(tempHome, { recursive: true, force: true })
+  }
 }
 
 main().catch((err) => {
