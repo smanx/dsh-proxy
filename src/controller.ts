@@ -18,7 +18,6 @@ export interface EffectiveProxyOptions {
   upstreamPort: number
   username: string
   password: string
-  sessionTtlSeconds: number
 }
 
 export interface ProxyControllerOptions {
@@ -78,7 +77,6 @@ export class ProxyController {
       upstreamPort: this.options.upstreamPort,
       username: this.options.username,
       password: this.options.password,
-      sessionTtlSeconds: this.options.sessionTtlSeconds,
       log,
     })
     this.handle = handle
@@ -90,7 +88,7 @@ export class ProxyController {
       log('info', `dsh-lan-proxy: 本机访问 ${urls.local}`)
       for (const url of urls.lan) log('info', `dsh-lan-proxy: 局域网访问 ${url}`)
       if (this.options.username !== '' && this.options.password !== '') {
-        log('info', `dsh-lan-proxy: password login enabled (username: ${this.options.username}); sessions last ${Math.round(this.options.sessionTtlSeconds / 3600)}h and are invalidated on restart`)
+        log('info', `dsh-lan-proxy: password login enabled (username: ${this.options.username}) — browser Basic Auth`)
       } else if (this.options.username !== '' || this.options.password !== '') {
         log('warn', 'dsh-lan-proxy: password login NOT enabled — username and password must BOTH be set (only one is configured); the LAN surface is open')
       } else {
@@ -147,8 +145,7 @@ export class ProxyController {
       upstreamPort: this.options.upstreamPort,
       upstreamReachable: this.probeCache?.reachable ?? false,
       username: this.options.username,
-      authEnabled: this.options.username !== '' || this.options.password !== '',
-      sessionTtlHours: Math.round(this.options.sessionTtlSeconds / 3600),
+      authEnabled: this.options.username !== '' && this.options.password !== '',
       persisted: this.persisted(),
     }
   }

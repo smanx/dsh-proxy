@@ -7,7 +7,6 @@ export interface EffectiveProxyOptions {
     upstreamPort: number;
     username: string;
     password: string;
-    sessionTtlSeconds: number;
 }
 export interface ProxyControllerOptions {
     /** Options from the cordis config (schema defaults applied, upstream port resolved). */

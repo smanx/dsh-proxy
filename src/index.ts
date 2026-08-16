@@ -46,8 +46,6 @@ export interface Config {
   username: string
   /** Login / Basic Auth password; password login is enabled only when both it and `username` are set. */
   password: string
-  /** Session cookie lifetime in hours. */
-  sessionTtlHours: number
 }
 
 /** Configuration schema; deployment-varying bounds stay tunable from cordis.yml. */
@@ -58,7 +56,6 @@ export const Config = z.object({
   upstreamPort: z.natural().max(65535).default(0),
   username: z.string().default(''),
   password: z.string().default(''),
-  sessionTtlHours: z.natural().max(720).default(12),
 })
 
 /**
@@ -81,7 +78,6 @@ export function apply(ctx: Context, config?: Config): void {
       upstreamPort: resolved.upstreamPort || ctx.webServer.port || 3080,
       username: resolved.username,
       password: resolved.password,
-      sessionTtlSeconds: resolved.sessionTtlHours * 3600,
     },
     settingsFile: dshHomePath('dsh-lan-proxy.json'),
     log,

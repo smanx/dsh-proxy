@@ -236,7 +236,6 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
       />
       <StatusRow label={t('status.username')} value={status.username} />
       <StatusRow label={t('status.auth')} value={authBadge} />
-      <StatusRow label={t('status.sessionTtl')} value={`${status.sessionTtlHours} ${t('hours')}`} />
       <p className="dsh_lanproxy_hint">
         {status.persisted ? t('status.persistedOn') : t('status.persistedOff')}
       </p>

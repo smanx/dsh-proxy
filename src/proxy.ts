@@ -1,9 +1,12 @@
 /**
  * The LAN reverse proxy core: an HTTP + WebSocket reverse proxy that forwards
  * to the local DSH service (127.0.0.1:<upstreamPort>) and gates every request
- * behind the web-based auth (login page + signed session cookie, with Basic
- * Auth as fallback). Pure node — no cordis; the plugin entry in index.ts wires
- * it into the harness lifecycle.
+ * behind HTTP Basic Auth — the browser's NATIVE credential dialog, exactly
+ * like the standalone dsh-proxy. No custom login page, no session cookies:
+ * after a successful Basic login the browser caches the credentials for the
+ * origin and sends them on every request (including WebSocket handshakes).
+ * Pure node — no cordis; the plugin entry in index.ts wires it into the
+ * harness lifecycle.
  *
  * Three compatibility fixes make the proxied LAN surface work exactly like
  * loopback access:
@@ -21,8 +24,7 @@ import type { Duplex } from 'node:stream'
 import net from 'node:net'
 import os from 'node:os'
 import httpProxy from 'http-proxy'
-import { Authenticator, SESSION_COOKIE, safeEqual } from './session.ts'
-import { loginPage, parseUrlencoded } from './login.ts'
+import { Authenticator } from './session.ts'
 import { injectPolyfill, RANDOM_UUID_POLYFILL } from './polyfill.ts'
 
 export interface LanProxyOptions {
@@ -34,12 +36,10 @@ export interface LanProxyOptions {
   upstreamHost: string
   /** Upstream DSH port (the web app's actual bound port). */
   upstreamPort: number
-  /** Login / Basic Auth username; empty together with `password` disables auth. */
+  /** Basic Auth username; password login is enabled only when both it and `password` are set. */
   username: string
-  /** Login / Basic Auth password; empty together with `username` disables auth. */
+  /** Basic Auth password; password login is enabled only when both it and `username` are set. */
   password: string
-  /** Session cookie lifetime in seconds. */
-  sessionTtlSeconds: number
   /** Optional sink for human-readable lifecycle messages. */
   log?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
@@ -53,15 +53,13 @@ export interface LanProxyHandle {
   describeUrls: (boundPort: number) => { local: string; lan: string[] }
 }
 
-const MAX_LOGIN_BODY_BYTES = 16 * 1024
-const UNAUTHORIZED_JSON = '{"error":"unauthorized"}'
-/** Basic Auth realm presented to unauthenticated external clients. */
+/** Basic Auth realm presented to unauthenticated clients. */
 const AUTH_REALM = 'dsh-lan-proxy'
 
 /**
  * Static files browsers fetch OUTSIDE the authenticated document context
  * (the PWA manifest and the favicon are requested without credentials), so
- * gating them on the session cookie 401s them. They carry no secrets and the
+ * gating them on Basic auth 401s them. They carry no secrets and the
  * upstream serves them unauthenticated anyway.
  */
 const PUBLIC_PATHS = new Set(['/manifest.webmanifest', '/favicon.svg'])
@@ -85,11 +83,10 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     upstreamPort,
     username,
     password,
-    sessionTtlSeconds,
     log = () => {},
   } = options
   const targetOrigin = `http://${upstreamHost}:${upstreamPort}`
-  const auth = new Authenticator({ username, password, sessionTtlSeconds })
+  const auth = new Authenticator({ username, password })
 
   const proxy = httpProxy.createProxyServer({
     target: targetOrigin,
@@ -135,86 +132,24 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     if (req.headers.origin) req.headers.origin = targetOrigin
   }
 
-  const redirect = (res: http.ServerResponse, location: string): void => {
-    res.writeHead(302, { location })
-    res.end()
-  }
-
-  const deny = (res: http.ServerResponse): void => {
+  /**
+   * Challenge with HTTP Basic Auth: the 401 plus WWW-Authenticate makes the
+   * browser show its NATIVE credential dialog. No custom login page exists —
+   * this is the whole authentication surface, matching the standalone
+   * dsh-proxy. (Browsers cache the credentials per origin after a successful
+   * login and silently replay them, including on WebSocket handshakes.)
+   */
+  const challenge = (res: http.ServerResponse): void => {
     res.writeHead(401, {
-      'content-type': 'application/json',
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
       'www-authenticate': `Basic realm="${AUTH_REALM}"`,
     })
-    res.end(UNAUTHORIZED_JSON)
-  }
-
-  // Browser navigations deliberately use the login page (302), never a Basic
-  // challenge: browsers cache Basic credentials per origin and silently replay
-  // them on any 401 — a user who once logged in (e.g. via the standalone
-  // dsh-proxy's Basic popup) would be auto-authenticated forever and never see
-  // a prompt. The cookie-based login page is immune to that cache, so every
-  // fresh session visibly requires login. Basic stays for /api and scripts.
-
-  const handleLogin = (req: http.IncomingMessage, res: http.ServerResponse): void => {
-    if (req.method === 'POST') {
-      let body = ''
-      let tooBig = false
-      req.on('data', (chunk: Buffer) => {
-        body += chunk.toString('utf8')
-        if (body.length > MAX_LOGIN_BODY_BYTES) tooBig = true
-      })
-      req.on('end', () => {
-        if (tooBig) {
-          redirect(res, '/login?error=1')
-          return
-        }
-        if (!auth.enabled) {
-          // Password login is off: the gate is open, nothing to validate.
-          redirect(res, '/')
-          return
-        }
-        const form = parseUrlencoded(body)
-        const credentialsOk = safeEqual(form.username ?? '', username) && safeEqual(form.password ?? '', password)
-        if (!credentialsOk) {
-          redirect(res, '/login?error=1')
-          return
-        }
-        const token = auth.sessions.issue(form.username)
-        res.writeHead(302, {
-          location: '/',
-          'set-cookie': `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionTtlSeconds}`,
-        })
-        res.end()
-      })
-      return
-    }
-    if (auth.isAuthenticated(req.headers.cookie, req.headers.authorization)) {
-      redirect(res, '/')
-      return
-    }
-    const error = new URL(req.url ?? '/', 'http://proxy.local').searchParams.has('error')
-    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
-    res.end(loginPage(error, Math.max(1, Math.round(sessionTtlSeconds / 3600))))
-  }
-
-  const handleLogout = (_req: http.IncomingMessage, res: http.ServerResponse): void => {
-    res.writeHead(302, {
-      location: '/login',
-      'set-cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
-    })
-    res.end()
+    res.end('401 Unauthorized')
   }
 
   const server = http.createServer((req, res) => {
     const pathname = new URL(req.url ?? '/', 'http://proxy.local').pathname
-    if (pathname === '/login') {
-      handleLogin(req, res)
-      return
-    }
-    if (pathname === '/logout') {
-      handleLogout(req, res)
-      return
-    }
     // Public static files (PWA manifest, favicon): fetched without
     // credentials by the browser, so they bypass the auth gate.
     if (PUBLIC_PATHS.has(pathname)) {
@@ -222,17 +157,8 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
       proxy.web(req, res)
       return
     }
-    if (!auth.isAuthenticated(req.headers.cookie, req.headers.authorization)) {
-      if (pathname.startsWith('/api/')) {
-        deny(res)
-        return
-      }
-      const accept = String(req.headers.accept ?? '')
-      if (accept.includes('text/html')) {
-        redirect(res, '/login')
-        return
-      }
-      deny(res)
+    if (!auth.isAuthenticated(req.headers.authorization)) {
+      challenge(res)
       return
     }
     alignOrigin(req)
@@ -241,7 +167,7 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
 
   const upgradedSockets = new Set<net.Socket>()
   server.on('upgrade', (req, socket, head) => {
-    if (!auth.isAuthenticated(req.headers.cookie, req.headers.authorization)) {
+    if (!auth.isAuthenticated(req.headers.authorization)) {
       socket.end(`HTTP/1.1 401 Unauthorized\r\nwww-authenticate: Basic realm="${AUTH_REALM}"\r\nConnection: close\r\n\r\n`)
       return
     }

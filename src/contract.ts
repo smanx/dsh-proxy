@@ -34,8 +34,6 @@ export interface LanProxyStatus {
   username: string
   /** Whether the auth gate is on (both credentials non-empty). */
   authEnabled: boolean
-  /** Session cookie lifetime in hours. */
-  sessionTtlHours: number
   /** Whether a persisted runtime override exists on top of the cordis config. */
   persisted: boolean
 }

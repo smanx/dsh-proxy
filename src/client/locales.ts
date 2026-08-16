@@ -22,7 +22,6 @@ export const zh = {
   'status.auth': '密码登录',
   'status.authOn': '已启用',
   'status.authOff': '未启用（局域网开放访问）',
-  'status.sessionTtl': '会话有效期',
   'status.persistedOn': '存在已保存的运行配置（优先于 cordis 配置）',
   'status.persistedOff': '使用 cordis 配置',
   'status.loading': '加载中…',
@@ -34,7 +33,7 @@ export const zh = {
   'control.stopped': '代理服务已停止',
   'control.failed': '操作失败',
   'form.title': '修改设置',
-  'form.subtitle': '保存后会重启转发服务；重启后所有已登录会话将失效，需重新登录。',
+  'form.subtitle': '启用密码登录后，浏览器会弹出原生 Basic Auth 登录框；保存修改会重启转发服务。',
   'form.upstreamPort': '转发目标端口（DSH 服务端口）',
   'form.upstreamPortHint': '留空保持不变',
   'form.username': '用户名',
@@ -50,7 +49,6 @@ export const zh = {
   'form.nothingToSave': '没有可保存的修改',
   'form.updated': '已保存并重启转发服务',
   'form.failed': '保存失败',
-  'hours': '小时',
 } satisfies Record<string, string>
 
 /** The `dsh-lan-proxy` namespace key union. */
@@ -76,7 +74,6 @@ export const en: Record<LanProxyKey, string> = {
   'status.auth': 'Password login',
   'status.authOn': 'Enabled',
   'status.authOff': 'Not enabled (open access)',
-  'status.sessionTtl': 'Session lifetime',
   'status.persistedOn': 'A saved runtime config overrides the cordis config',
   'status.persistedOff': 'Using the cordis config',
   'status.loading': 'Loading…',
@@ -88,7 +85,7 @@ export const en: Record<LanProxyKey, string> = {
   'control.stopped': 'Proxy service stopped',
   'control.failed': 'Action failed',
   'form.title': 'Edit settings',
-  'form.subtitle': 'Saving restarts the forwarding service; all active sessions are invalidated and users must log in again.',
+  'form.subtitle': 'With password login enabled, the browser shows its native Basic Auth dialog; saving restarts the forwarding service.',
   'form.upstreamPort': 'Forward target port (DSH service port)',
   'form.upstreamPortHint': 'Leave empty to keep current',
   'form.username': 'Username',
@@ -104,5 +101,4 @@ export const en: Record<LanProxyKey, string> = {
   'form.nothingToSave': 'Nothing to save',
   'form.updated': 'Saved and the forwarding service restarted',
   'form.failed': 'Save failed',
-  'hours': 'h',
 }

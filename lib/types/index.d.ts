@@ -33,8 +33,6 @@ export interface Config {
     username: string;
     /** Login / Basic Auth password; password login is enabled only when both it and `username` are set. */
     password: string;
-    /** Session cookie lifetime in hours. */
-    sessionTtlHours: number;
 }
 /** Configuration schema; deployment-varying bounds stay tunable from cordis.yml. */
 export declare const Config: z<Schemastery.ObjectS<{
@@ -44,7 +42,6 @@ export declare const Config: z<Schemastery.ObjectS<{
     upstreamPort: z<number, number>;
     username: z<string, string>;
     password: z<string, string>;
-    sessionTtlHours: z<number, number>;
 }>, Schemastery.ObjectT<{
     listenHost: z<string, string>;
     listenPort: z<number, number>;
@@ -52,7 +49,6 @@ export declare const Config: z<Schemastery.ObjectS<{
     upstreamPort: z<number, number>;
     username: z<string, string>;
     password: z<string, string>;
-    sessionTtlHours: z<number, number>;
 }>>;
 /**
  * Mount the proxy and the RPC channel as effects on this plugin's fiber:

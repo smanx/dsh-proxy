@@ -14,7 +14,6 @@ export declare const zh: {
     'status.auth': string;
     'status.authOn': string;
     'status.authOff': string;
-    'status.sessionTtl': string;
     'status.persistedOn': string;
     'status.persistedOff': string;
     'status.loading': string;
@@ -42,7 +41,6 @@ export declare const zh: {
     'form.nothingToSave': string;
     'form.updated': string;
     'form.failed': string;
-    hours: string;
 };
 /** The `dsh-lan-proxy` namespace key union. */
 export type LanProxyKey = keyof typeof zh;
