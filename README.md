@@ -77,4 +77,5 @@ pnpm run smoke   # full live smoke test against a running DSH on 127.0.0.1:3080
 
 - **The LAN surface is OPEN by default** (empty username/password). Set **both** credentials in the settings page as soon as possible.
 - Once password login is enabled, DSH's `/api` trust fence sees the rewritten loopback `Host`, so **privileged RPCs (settings/credentials) are reachable from the LAN** — the Basic/login gate is the only barrier.
+- `/manifest.webmanifest` and `/favicon.svg` bypass the gate: browsers fetch them in credential-less contexts (PWA manifest, favicon), so requiring the session cookie would 401 them. They carry no secrets.
 - Sessions rotate on server restart by design, keeping leaked cookies short-lived.

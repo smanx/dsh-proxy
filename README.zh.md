@@ -82,6 +82,7 @@ pnpm run smoke   # 对正在运行的 DSH（127.0.0.1:3080）做全流程冒烟�
 - 登录页：`GET /login`、`POST /login`（urlencoded）、`GET /logout`；成功登录签发会话 Cookie。
 - 会话 Cookie：`dsh_lan_session=<base64url(payload)>.<base64url(hmac-sha256)>`，`payload = <过期秒数>.<用户名>`；比较用常量时间。
 - Basic Auth 与 Cookie 均可通过 HTTP 与 WebSocket 握手校验（浏览器走 Cookie，curl/脚本走 Basic 头）。
+- **公开静态文件**：`/manifest.webmanifest` 与 `/favicon.svg` 免认证——浏览器会在不带凭据的上下文（PWA 清单、图标）拉取它们，强制认证会 401。
 - 登录表单体上限 16 KiB；Cookie `HttpOnly`（脚本不可读）、`SameSite=Lax`（跨站 POST 不带 Cookie）。
 
 ## 安全提示
