@@ -79,7 +79,7 @@ describe('ProxyController status', () => {
     expect(status.username).toBe('admin')
     expect(status.authEnabled).toBe(true)
     expect(status.persisted).toBe(false)
-    expect(JSON.stringify(status)).not.toContain('password')
+    expect(status.password).toBe('admin')
     expect(logs.some((line) => line.includes('listening'))).toBe(true)
 
     const fresh = await controller.refreshStatus()
@@ -158,6 +158,37 @@ describe('ProxyController update', () => {
     expect(newCreds.text).toBe('UPSTREAM')
     expect(controller.status().username).toBe('alice')
     expect(controller.status().authEnabled).toBe(true)
+  })
+
+  it('disables password login when credentials are cleared to empty (set-empty semantics)', async () => {
+    const upstreamPort = await startUpstream('UPSTREAM')
+    controller = new ProxyController({
+      base: baseOptions(upstreamPort),
+      settingsFile: tempSettingsFile(),
+      log: () => {},
+    })
+    await controller.start()
+    const listenPort = controller.status().listenPort
+
+    const cleared = await controller.update({ username: '', password: '' })
+    expect(cleared.ok).toBe(true)
+    if (!cleared.ok) return
+    expect(cleared.result.status.authEnabled).toBe(false)
+    expect(cleared.result.status.username).toBe('')
+    expect(cleared.result.status.password).toBe('')
+
+    // The gate is open again: an anonymous request passes through.
+    const anon = await fetchThrough(`http://127.0.0.1:${cleared.result.status.listenPort}/`)
+    expect(anon.status).toBe(200)
+    expect(anon.text).toBe('UPSTREAM')
+
+    // Setting only one credential keeps password login off and warns.
+    const partial = await controller.update({ username: 'half', password: '' })
+    expect(partial.ok).toBe(true)
+    if (!partial.ok) return
+    expect(partial.result.status.authEnabled).toBe(false)
+    expect(partial.result.message).toContain('需同时设置用户名和密码')
+    expect(listenPort).toBeGreaterThan(0)
   })
 
   it('persists the patch across controller instances', async () => {

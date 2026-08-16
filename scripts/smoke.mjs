@@ -236,6 +236,22 @@ async function pluginContractPhase() {
     )
     check('conflicting upstream port rejected by the channel', conflict?.ok === false, JSON.stringify(conflict))
 
+    const cleared = await registered.handler(
+      'update',
+      { username: '', password: '' },
+      new AbortController().signal,
+    )
+    check(
+      'clearing credentials disables password login (set-empty semantics)',
+      cleared?.ok === true && cleared.value?.status?.authEnabled === false && cleared.value?.status?.password === '',
+      JSON.stringify(cleared),
+    )
+    const reopened = await registered.handler('update', { username: 'smoke-user', password: 'smoke-pass' }, new AbortController().signal)
+    check(
+      're-setting both credentials re-enables password login',
+      reopened?.ok === true && reopened.value?.status?.authEnabled === true,
+    )
+
     const stopped = await registered.handler('stop', {}, new AbortController().signal)
     check(
       'RPC stop answers with the proxy stopped',

@@ -33,6 +33,7 @@ const STATUS: LanProxyStatus = {
   upstreamPort: 3080,
   upstreamReachable: true,
   username: 'admin',
+  password: 's3cret',
   authEnabled: true,
   persisted: false,
 }
@@ -224,7 +225,7 @@ describe('start/stop controls', () => {
 })
 
 describe('update form', () => {
-  it('submits the target port, username, and password patch and shows the message', async () => {
+  it('pre-fills the fields with the current values and submits the full payload', async () => {
     const updated = { ...STATUS, upstreamPort: 3090, username: 'alice' }
     const { rpc, calls } = makeRpc({
       update: () => Promise.resolve({ ok: true, value: { status: updated, message: '已保存并重启转发服务' } }),
@@ -233,9 +234,12 @@ describe('update form', () => {
     await flush()
 
     const inputs = mounted.container.querySelectorAll('input')
+    expect((inputs[0] as HTMLInputElement).value).toBe('3080')
+    expect((inputs[1] as HTMLInputElement).value).toBe('admin')
+    expect((inputs[2] as HTMLInputElement).value).toBe('s3cret')
+
     setInputValue(inputs[0], '3090')
     setInputValue(inputs[1], 'alice')
-    setInputValue(inputs[2], 's3cret')
     flushSync(() => {})
     submitForm(mounted.container)
     await flush()
@@ -244,6 +248,29 @@ describe('update form', () => {
     expect(updateCall).toEqual({ channel: RPC_CHANNEL, endpoint: RPC_UPDATE_ENDPOINT, payload: { upstreamPort: 3090, username: 'alice', password: 's3cret' } })
     expect(mounted.container.textContent ?? '').toContain('已保存并重启转发服务')
     expect(mounted.container.textContent ?? '').toContain('127.0.0.1:3090')
+    // After saving, the form is re-seeded with the returned status.
+    expect((inputs[0] as HTMLInputElement).value).toBe('3090')
+    expect((inputs[1] as HTMLInputElement).value).toBe('alice')
+  })
+
+  it('submits empty strings when credentials are cleared (set-empty semantics)', async () => {
+    const cleared = { ...STATUS, username: '', password: '', authEnabled: false }
+    const { rpc, calls } = makeRpc({
+      update: () => Promise.resolve({ ok: true, value: { status: cleared, message: '已保存并重启转发服务' } }),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+
+    const inputs = mounted.container.querySelectorAll('input')
+    setInputValue(inputs[1], '')
+    setInputValue(inputs[2], '')
+    flushSync(() => {})
+    submitForm(mounted.container)
+    await flush()
+
+    const updateCall = calls.find((call) => call.endpoint === RPC_UPDATE_ENDPOINT)
+    expect(updateCall).toEqual({ channel: RPC_CHANNEL, endpoint: RPC_UPDATE_ENDPOINT, payload: { upstreamPort: 3080, username: '', password: '' } })
+    expect(mounted.container.textContent ?? '').toContain('未启用')
   })
 
   it('rejects an invalid port locally without calling the host', async () => {
@@ -261,7 +288,7 @@ describe('update form', () => {
     expect(calls.some((call) => call.endpoint === RPC_UPDATE_ENDPOINT)).toBe(false)
   })
 
-  it('toggles password visibility with the eye button', async () => {
+  it('toggles password visibility with the eye button (value stays pre-filled)', async () => {
     const { rpc } = makeRpc()
     mounted = mount(<SettingsSection {...props(rpc)} />)
     await flush()
@@ -269,11 +296,13 @@ describe('update form', () => {
     const inputs = mounted.container.querySelectorAll('input')
     const password = inputs[2]
     expect(password.type).toBe('password')
+    expect((password as HTMLInputElement).value).toBe('s3cret')
 
     const eye = mounted.container.querySelector('.dsh_lanproxy_eye') as HTMLButtonElement
     eye.click()
     flushSync(() => {})
     expect(password.type).toBe('text')
+    expect((password as HTMLInputElement).value).toBe('s3cret')
 
     eye.click()
     flushSync(() => {})
