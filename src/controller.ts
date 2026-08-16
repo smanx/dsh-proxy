@@ -145,6 +145,7 @@ export class ProxyController {
       upstreamPort: this.options.upstreamPort,
       upstreamReachable: this.probeCache?.reachable ?? false,
       username: this.options.username,
+      password: this.options.password,
       authEnabled: this.options.username !== '' && this.options.password !== '',
       persisted: this.persisted(),
     }

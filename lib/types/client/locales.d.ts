@@ -38,7 +38,6 @@ export declare const zh: {
     'form.saving': string;
     'form.invalidPort': string;
     'form.portConflict': string;
-    'form.nothingToSave': string;
     'form.updated': string;
     'form.failed': string;
 };

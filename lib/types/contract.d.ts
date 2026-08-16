@@ -30,6 +30,14 @@ export interface LanProxyStatus {
     upstreamReachable: boolean;
     /** Login username currently enforced. */
     username: string;
+    /**
+     * The CURRENT password, so the settings form can pre-fill (write back) the
+     * credential fields and empty means "set empty". The status channel is
+     * loopback-authority and sits behind the proxy's auth gate, so a caller
+     * reaching it already holds the same credentials (or is on the host, where
+     * the persisted $DSH_HOME file is equally readable).
+     */
+    password: string;
     /** Whether the auth gate is on (both credentials non-empty). */
     authEnabled: boolean;
     /** Whether a persisted runtime override exists on top of the cordis config. */

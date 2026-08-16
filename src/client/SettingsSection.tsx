@@ -101,10 +101,20 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
   const [upstreamPort, setUpstreamPort] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  // Ref (not state): the form is seeded from the first successful status
+  // load only; a state dependency here would re-run the load effect.
+  const formSeededRef = useRef(false)
 
   const applyPhase = useCallback((next: StatusPhase): void => {
     phaseRef.current = next
     setPhase(next)
+  }, [])
+
+  /** Write the current values back into the form (empty means "set empty"). */
+  const applyStatusToForm = useCallback((next: LanProxyStatus): void => {
+    setUpstreamPort(String(next.upstreamPort))
+    setUsername(next.username)
+    setPassword(next.password ?? '')
   }, [])
 
   /** Fetch the current proxy status; every outcome is rendered, never thrown. */
@@ -117,8 +127,13 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
       // object keeps the wire message valid.
       const result = await rpc.call(RPC_CHANNEL, RPC_STATUS_ENDPOINT, {})
       if (result.ok) {
-        setStatus(result.value as LanProxyStatus)
+        const next = result.value as LanProxyStatus
+        setStatus(next)
         applyPhase('ok')
+        if (!formSeededRef.current) {
+          applyStatusToForm(next)
+          formSeededRef.current = true
+        }
       } else {
         setStatusError(result.error.message)
         applyPhase('error')
@@ -128,7 +143,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
       setStatusError(err instanceof Error ? err.message : String(err))
       applyPhase('error')
     }
-  }, [rpc, applyPhase])
+  }, [rpc, applyPhase, applyStatusToForm])
 
   useEffect(() => {
     void loadStatus()
@@ -171,24 +186,22 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
     setError(null)
     setMessage(null)
     try {
-      const payload: LanProxyUpdatePayload = {}
-      if (upstreamPort.trim() !== '') {
-        const port = Number(upstreamPort.trim())
-        if (!Number.isInteger(port) || port < 1 || port > 65535) {
-          setError(t('form.invalidPort'))
-          return
-        }
-        if (status !== null && port === status.listenPort) {
-          setError(t('form.portConflict'))
-          return
-        }
-        payload.upstreamPort = port
-      }
-      if (username.trim() !== '') payload.username = username.trim()
-      if (password !== '') payload.password = password
-      if (payload.upstreamPort === undefined && payload.username === undefined && payload.password === undefined) {
-        setError(t('form.nothingToSave'))
+      // The form is pre-filled with the current values and always submits the
+      // FULL payload: clearing a field intentionally SETS it empty (both empty
+      // disables password login), it never means "keep unchanged".
+      const port = Number(upstreamPort.trim())
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        setError(t('form.invalidPort'))
         return
+      }
+      if (status !== null && port === status.listenPort) {
+        setError(t('form.portConflict'))
+        return
+      }
+      const payload: LanProxyUpdatePayload = {
+        upstreamPort: port,
+        username: username.trim(),
+        password,
       }
       const result = await rpc.call(RPC_CHANNEL, RPC_UPDATE_ENDPOINT, payload)
       if (result.ok) {
@@ -196,9 +209,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         setStatus(value.status)
         applyPhase('ok')
         setMessage(value.message)
-        setUpstreamPort('')
-        setUsername('')
-        setPassword('')
+        applyStatusToForm(value.status)
       } else {
         setError(result.error.message)
       }
