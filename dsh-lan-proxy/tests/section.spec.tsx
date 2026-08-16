@@ -228,7 +228,7 @@ describe('update form', () => {
   it('pre-fills the fields with the current values and submits the full payload', async () => {
     const updated = { ...STATUS, listenPort: 3091, username: 'alice' }
     const { rpc, calls } = makeRpc({
-      update: () => Promise.resolve({ ok: true, value: { status: updated, message: '已保存并重启转发服务' } }),
+      update: () => Promise.resolve({ ok: true, value: { status: updated, notice: 'saved', message: '已保存并重启转发服务' } }),
     })
     mounted = mount(<SettingsSection {...props(rpc)} />)
     await flush()
@@ -256,7 +256,7 @@ describe('update form', () => {
   it('submits empty strings when credentials are cleared (set-empty semantics)', async () => {
     const cleared = { ...STATUS, username: '', password: '', authEnabled: false }
     const { rpc, calls } = makeRpc({
-      update: () => Promise.resolve({ ok: true, value: { status: cleared, message: '已保存并重启转发服务' } }),
+      update: () => Promise.resolve({ ok: true, value: { status: cleared, notice: 'saved', message: '已保存并重启转发服务' } }),
     })
     mounted = mount(<SettingsSection {...props(rpc)} />)
     await flush()
@@ -271,6 +271,21 @@ describe('update form', () => {
     const updateCall = calls.find((call) => call.endpoint === RPC_UPDATE_ENDPOINT)
     expect(updateCall).toEqual({ channel: RPC_CHANNEL, endpoint: RPC_UPDATE_ENDPOINT, payload: { listenPort: 3081, username: '', password: '' } })
     expect(mounted.container.textContent ?? '').toContain('未启用')
+  })
+
+  it('localizes the credentials-partial notice from the host', async () => {
+    const partial = { ...STATUS, username: 'half', password: '', authEnabled: false }
+    const { rpc } = makeRpc({
+      update: () => Promise.resolve({
+        ok: true,
+        value: { status: partial, notice: 'credentials-partial', message: '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）' },
+      }),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+    submitForm(mounted.container)
+    await flush()
+    expect(mounted.container.textContent ?? '').toContain('需同时设置用户名和密码')
   })
 
   it('rejects an invalid port locally without calling the host', async () => {
