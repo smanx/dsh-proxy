@@ -26,8 +26,10 @@ const t = (key: LanProxyKey): string => zh[key] ?? key
 const STATUS: LanProxyStatus = {
   listenHost: '0.0.0.0',
   listenPort: 3081,
+  proxyListening: true,
   upstreamHost: '127.0.0.1',
   upstreamPort: 3080,
+  upstreamReachable: true,
   username: 'admin',
   authEnabled: true,
   sessionTtlHours: 12,
@@ -87,16 +89,35 @@ afterEach(() => {
 })
 
 describe('status card', () => {
-  it('renders the running port, forward target, and auth state', async () => {
+  it('renders both ports with green lights, plus the auth state', async () => {
     const { rpc } = makeRpc()
     mounted = mount(<SettingsSection {...props(rpc)} />)
     await flush()
     const text = mounted.container.textContent ?? ''
-    expect(text).toContain('3081')
+    expect(text).toContain('0.0.0.0:3081')
+    expect(text).toContain('运行中')
     expect(text).toContain('127.0.0.1:3080')
+    expect(text).toContain('可访问')
     expect(text).toContain('admin')
     expect(text).toContain('已启用')
-    expect(rpc.call).toHaveBeenCalledWith(RPC_CHANNEL, RPC_STATUS_ENDPOINT, undefined)
+    // The status RPC must carry an explicit (present) payload field — the
+    // host envelope schema rejects a dropped undefined payload key.
+    expect(rpc.call).toHaveBeenCalledWith(RPC_CHANNEL, RPC_STATUS_ENDPOINT, {})
+  })
+
+  it('lights both ports red when the proxy is down and the target is unreachable', async () => {
+    const { rpc } = makeRpc({
+      status: () => Promise.resolve({
+        ok: true,
+        value: { ...STATUS, proxyListening: false, upstreamReachable: false },
+      }),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+    const text = mounted.container.textContent ?? ''
+    expect(text).toContain('未运行')
+    expect(text).toContain('不可访问')
+    expect(text).not.toContain('运行中')
   })
 
   it('shows the unreachable banner when the status RPC fails', async () => {

@@ -211,8 +211,12 @@ async function pluginContractPhase() {
 
     const status1 = await registered.handler('status', undefined, new AbortController().signal)
     check(
-      'RPC status returns ok with a bound port',
-      status1?.ok === true && typeof status1.value?.listenPort === 'number' && status1.value?.listenPort > 0,
+      'RPC status returns ok with a bound port and green lights',
+      status1?.ok === true
+        && typeof status1.value?.listenPort === 'number'
+        && status1.value?.listenPort > 0
+        && status1.value?.proxyListening === true
+        && status1.value?.upstreamReachable === true,
       JSON.stringify(status1),
     )
 

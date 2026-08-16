@@ -75,6 +75,7 @@ describe('ProxyController status', () => {
     const status = controller.status()
     expect(status.listenHost).toBe('127.0.0.1')
     expect(status.listenPort).toBeGreaterThan(0)
+    expect(status.proxyListening).toBe(true)
     expect(status.upstreamPort).toBe(upstreamPort)
     expect(status.username).toBe('admin')
     expect(status.authEnabled).toBe(true)
@@ -82,6 +83,33 @@ describe('ProxyController status', () => {
     expect(status.persisted).toBe(false)
     expect(JSON.stringify(status)).not.toContain('password')
     expect(logs.some((line) => line.includes('listening'))).toBe(true)
+
+    const fresh = await controller.refreshStatus()
+    expect(fresh.upstreamReachable).toBe(true)
+  })
+
+  it('lights the proxy red when the listen port is taken and the target red when nothing listens upstream', async () => {
+    // Occupy a concrete port so the controller cannot bind it.
+    const blocker = http.createServer(() => {})
+    servers.push(blocker)
+    await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve))
+    const takenPort = (blocker.address() as AddressInfo).port
+
+    // Reserve a port and release it, so the upstream probe finds no listener.
+    const probe = http.createServer(() => {})
+    await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve))
+    const deadPort = (probe.address() as AddressInfo).port
+    await new Promise<void>((resolve) => probe.close(() => resolve()))
+
+    controller = new ProxyController({
+      base: { ...baseOptions(deadPort), listenPort: takenPort },
+      settingsFile: tempSettingsFile(),
+      log: () => {},
+    })
+    await controller.start()
+    expect(controller.status().proxyListening).toBe(false)
+    const fresh = await controller.refreshStatus()
+    expect(fresh.upstreamReachable).toBe(false)
   })
 })
 
@@ -195,6 +223,7 @@ describe('ProxyController start failure', () => {
     })
     await controller.start()
     expect(controller.status().listenPort).toBe(takenPort)
+    expect(controller.status().proxyListening).toBe(false)
     expect(logs.some((line) => line.includes('failed to listen'))).toBe(true)
   })
 })
