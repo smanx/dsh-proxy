@@ -5,4 +5,4 @@
 # every key you own).
 - insert:
     - id: dsh-proxy
-      name: @smanx/dsh-proxy
+      name: "@smanx/dsh-proxy"
