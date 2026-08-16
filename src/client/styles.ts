@@ -127,6 +127,45 @@ export const cssText = `
   outline: none;
   border-color: var(--dsw-alias-accent);
 }
+.dsh_lanproxy_passwordWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.dsh_lanproxy_passwordInput {
+  padding-right: 36px;
+}
+.dsh_lanproxy_eye {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+.dsh_lanproxy_eye:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+.dsh_lanproxy_eye svg {
+  width: 16px;
+  height: 16px;
+}
+.dsh_lanproxy_statusError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
 .dsh_lanproxy_actions {
   display: flex;
   align-items: center;

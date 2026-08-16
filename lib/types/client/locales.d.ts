@@ -7,6 +7,7 @@ export declare const zh: {
     'status.listenHost': string;
     'status.listenPort': string;
     'status.upstream': string;
+    'status.username': string;
     'status.auth': string;
     'status.authOn': string;
     'status.authOff': string;
@@ -15,6 +16,7 @@ export declare const zh: {
     'status.persistedOff': string;
     'status.loading': string;
     'status.unreachable': string;
+    'status.retry': string;
     'form.title': string;
     'form.subtitle': string;
     'form.upstreamPort': string;
@@ -23,6 +25,8 @@ export declare const zh: {
     'form.usernameHint': string;
     'form.password': string;
     'form.passwordHint': string;
+    'form.showPassword': string;
+    'form.hidePassword': string;
     'form.save': string;
     'form.saving': string;
     'form.invalidPort': string;
