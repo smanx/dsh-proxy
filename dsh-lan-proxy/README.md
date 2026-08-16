@@ -15,7 +15,7 @@ A DeepSeek Harness plugin that exposes the local DSH web app (default `127.0.0.1
 ## Install
 
 ```bash
-dsh plugin --profile web add file:C:/mydata/codes/dsh-lan-proxy
+dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy
 ```
 
 Then **restart `dsh web`**. If port 3081 is taken (e.g. the standalone dsh-proxy is still running), stop it first or change `listenPort` below.

@@ -23,7 +23,7 @@ Standing orders for this repository. The product contract lives in [README.zh.md
 
 ## Integration
 
-- Install into a dsh profile via `dsh plugin --profile <name> add file:/path/to/dsh-lan-proxy` (bundle route); changes take effect on the **next `dsh web` restart**.
+- This plugin lives at `dsh-lan-proxy/` inside the dsh-proxy repository (the DSH-plugin variant, alongside the standalone `go/` and `node/` builds). Install into a dsh profile via `dsh plugin --profile <name> add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy` (bundle route); changes take effect on the **next `dsh web` restart**.
 - Dev type sources are `file:`-linked to the dsh npm install's `node_modules` (`@deepseek-ai/cordis`, `@deepseek-ai/schemastery`, `@deepseek-ai/dsh-host-webserver`); when the harness version moves, re-run `pnpm install` and fix API drift.
 - The upstream port defaults to `ctx.webServer.port` (the web app's real bound port) when `upstreamPort` is 0; the plugin injects `webServer` so that value is always available before `apply` runs.
 - Listen failures (e.g. EADDRINUSE when the standalone dsh-proxy holds 3081) are logged loudly but must **never** fail the web app's boot.
