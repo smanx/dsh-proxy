@@ -1,9 +1,11 @@
 /**
  * The settings-section stylesheet, hand-written as a template string and
  * injected once by the plugin body: the web server serves exactly one file per
- * client plugin, so no separate CSS artifact may exist. Tokens come only from
- * the shared `--dsw-alias-*` design platform (no literal colors); class names
- * carry the `dsh_lanproxy` prefix to stay unique in the assembled shell.
+ * client plugin, so no separate CSS artifact may exist. Colors come from the
+ * shared `--dsw-alias-*` design platform, but every reference carries a literal
+ * fallback (the same pattern the harness itself uses) so the section stays
+ * legible even where a token is not defined in the current theme context.
+ * Class names carry the `dsh_lanproxy` prefix to stay unique in the shell.
  */
 
 /** Stable `<style>` element id (idempotent injection across HMR re-runs). */
@@ -25,14 +27,14 @@ export const cssText = `
 }
 .dsh_lanproxy_title {
   margin: 0;
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary, #e6edf3);
   font-size: 18px;
   line-height: 26px;
   font-weight: 600;
 }
 .dsh_lanproxy_subtitle {
   margin: 0;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-tertiary, #8b949e);
   font-size: 13px;
   line-height: 20px;
 }
@@ -42,12 +44,12 @@ export const cssText = `
   gap: 10px;
   min-width: 0;
   padding: 14px 16px;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 1px solid var(--dsw-alias-border-l2, #30363d);
   border-radius: 12px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-bg-layer-1, #161b22);
 }
 .dsh_lanproxy_cardTitle {
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary, #e6edf3);
   font-size: 14px;
   line-height: 20px;
   font-weight: 600;
@@ -64,17 +66,9 @@ export const cssText = `
   align-items: center;
   gap: 8px;
 }
-.dsh_lanproxy_buttonStop {
-  background: transparent;
-  border: 1px solid var(--dsw-alias-border-l2);
-  color: var(--dsw-alias-label-primary);
-}
-.dsh_lanproxy_buttonStop:disabled {
-  opacity: 0.45;
-}
 .dsh_lanproxy_cardDesc {
   margin: -4px 0 0;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-tertiary, #8b949e);
   font-size: 12px;
   line-height: 18px;
 }
@@ -86,12 +80,12 @@ export const cssText = `
   min-width: 0;
 }
 .dsh_lanproxy_rowLabel {
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-secondary, #c9d1d9);
   font-size: 13px;
   line-height: 20px;
 }
 .dsh_lanproxy_rowValue {
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary, #e6edf3);
   font-size: 13px;
   line-height: 20px;
   font-variant-numeric: tabular-nums;
@@ -110,15 +104,15 @@ export const cssText = `
   flex: none;
 }
 .dsh_lanproxy_dotOn {
-  background: var(--dsw-alias-fg-positive);
-  box-shadow: 0 0 0 3px var(--dsw-alias-bg-positive);
+  background: var(--dsw-alias-fg-positive, #3fb950);
+  box-shadow: 0 0 0 3px var(--dsw-alias-bg-positive, rgba(35, 134, 54, 0.25));
 }
 .dsh_lanproxy_dotOff {
-  background: var(--dsw-alias-fg-danger);
-  box-shadow: 0 0 0 3px var(--dsw-alias-bg-danger);
+  background: var(--dsw-alias-fg-danger, #f85149);
+  box-shadow: 0 0 0 3px var(--dsw-alias-bg-danger, rgba(248, 81, 73, 0.15));
 }
 .dsh_lanproxy_portValue {
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary, #e6edf3);
   font-variant-numeric: tabular-nums;
 }
 .dsh_lanproxy_statusText {
@@ -126,10 +120,10 @@ export const cssText = `
   line-height: 18px;
 }
 .dsh_lanproxy_statusTextOn {
-  color: var(--dsw-alias-fg-positive);
+  color: var(--dsw-alias-fg-positive, #3fb950);
 }
 .dsh_lanproxy_statusTextOff {
-  color: var(--dsw-alias-fg-danger);
+  color: var(--dsw-alias-fg-danger, #f85149);
 }
 .dsh_lanproxy_badge {
   padding: 2px 8px;
@@ -138,12 +132,12 @@ export const cssText = `
   line-height: 18px;
 }
 .dsh_lanproxy_badgeOn {
-  color: var(--dsw-alias-fg-positive);
-  background: var(--dsw-alias-bg-positive);
+  color: var(--dsw-alias-fg-positive, #3fb950);
+  background: var(--dsw-alias-bg-positive, rgba(35, 134, 54, 0.25));
 }
 .dsh_lanproxy_badgeOff {
-  color: var(--dsw-alias-fg-danger);
-  background: var(--dsw-alias-bg-danger);
+  color: var(--dsw-alias-fg-danger, #f85149);
+  background: var(--dsw-alias-bg-danger, rgba(248, 81, 73, 0.15));
 }
 .dsh_lanproxy_form {
   display: flex;
@@ -158,28 +152,28 @@ export const cssText = `
   min-width: 0;
 }
 .dsh_lanproxy_fieldLabel {
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-secondary, #c9d1d9);
   font-size: 13px;
   line-height: 20px;
 }
 .dsh_lanproxy_fieldHint {
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-tertiary, #8b949e);
   font-size: 12px;
   line-height: 18px;
 }
 .dsh_lanproxy_input {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 1px solid var(--dsw-alias-border-l2, #30363d);
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-0);
-  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-0, #0d1117);
+  color: var(--dsw-alias-label-primary, #e6edf3);
   font-size: 13px;
   line-height: 20px;
 }
 .dsh_lanproxy_input:focus {
   outline: none;
-  border-color: var(--dsw-alias-accent);
+  border-color: var(--dsw-alias-accent, #2f81f7);
 }
 .dsh_lanproxy_passwordWrap {
   position: relative;
@@ -202,12 +196,12 @@ export const cssText = `
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-tertiary, #8b949e);
   cursor: pointer;
 }
 .dsh_lanproxy_eye:hover {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary, #e6edf3);
+  background: var(--dsw-alias-bg-layer-2, #21262d);
 }
 .dsh_lanproxy_eye svg {
   width: 16px;
@@ -226,35 +220,66 @@ export const cssText = `
   gap: 12px;
   margin-top: 2px;
 }
+/* Primary button (启动 / 应用): filled accent with a visible border. */
 .dsh_lanproxy_button {
   padding: 7px 14px;
-  border: 0;
+  border: 1px solid var(--dsw-alias-accent, #2f81f7);
   border-radius: 8px;
-  background: var(--dsw-alias-accent);
-  color: var(--dsw-alias-fg-on-accent);
+  background: var(--dsw-alias-accent, #2f81f7);
+  color: var(--dsw-alias-fg-on-accent, #ffffff);
   font-size: 13px;
   line-height: 20px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.dsh_lanproxy_button:hover:not(:disabled) {
+  background: var(--dsw-alias-accent-hover, #388bfd);
+  border-color: var(--dsw-alias-accent-hover, #388bfd);
+}
+.dsh_lanproxy_button:active:not(:disabled) {
+  background: var(--dsw-alias-accent-active, #1f6feb);
+  border-color: var(--dsw-alias-accent-active, #1f6feb);
 }
 .dsh_lanproxy_button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
+  cursor: default;
+  border-color: var(--dsw-alias-border-l2, #30363d);
+  background: var(--dsw-alias-bg-layer-2, #21262d);
+  color: var(--dsw-alias-label-tertiary, #8b949e);
+}
+/* Secondary button (停止): outline style with its own border. */
+.dsh_lanproxy_buttonStop {
+  background: var(--dsw-alias-bg-layer-1, #161b22);
+  border: 1px solid var(--dsw-alias-border-l2, #30363d);
+  color: var(--dsw-alias-label-primary, #e6edf3);
+}
+.dsh_lanproxy_buttonStop:hover:not(:disabled) {
+  background: var(--dsw-alias-bg-layer-2, #21262d);
+  border-color: var(--dsw-alias-label-tertiary, #8b949e);
+}
+.dsh_lanproxy_buttonStop:active:not(:disabled) {
+  background: var(--dsw-alias-bg-layer-0, #0d1117);
+}
+.dsh_lanproxy_buttonStop:disabled {
+  opacity: 0.5;
   cursor: default;
 }
 .dsh_lanproxy_message {
   margin: 0;
-  color: var(--dsw-alias-fg-positive);
+  color: var(--dsw-alias-fg-positive, #3fb950);
   font-size: 13px;
   line-height: 20px;
 }
 .dsh_lanproxy_error {
   margin: 0;
-  color: var(--dsw-alias-fg-danger);
+  color: var(--dsw-alias-fg-danger, #f85149);
   font-size: 13px;
   line-height: 20px;
 }
 .dsh_lanproxy_hint {
   margin: 0;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-tertiary, #8b949e);
   font-size: 12px;
   line-height: 18px;
 }
