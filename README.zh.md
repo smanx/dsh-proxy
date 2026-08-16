@@ -4,6 +4,7 @@ DSH 插件：把 DeepSeek Harness Web 界面（默认 `127.0.0.1:3080`）转发�
 
 - **HTTP + WebSocket 全协议转发**：任务状态、日志等实时推送不失效
 - **Web-based 认证**：自带登录页（用户名/密码 → 签名会话 Cookie，HMAC-SHA256、HttpOnly、SameSite=Lax、可设有效期）；脚本/工具可用 **Basic Auth** 兜底
+- **设置页面**：DSH 设置 → 「局域网代理」，显示当前监听端口/转发目标，可修改转发目标端口、用户名、密码，保存后自动重启转发服务（持久化到 `$DSH_HOME/dsh-lan-proxy.json`）
 - **开箱即通的兼容修复**：`Host`/`Origin` 改写（通过 DSH `/api` 同源信任篱笆，LAN 访问不 403）、`crypto.randomUUID` polyfill 注入（LAN 非安全上下文下前端 RPC 可用）
 - **随 `dsh web` 启停**：无需单独进程，配置改在 profile 的 `cordis.patch.yml`
 
@@ -39,6 +40,15 @@ dsh plugin --profile web add file:C:/mydata/codes/dsh-lan-proxy
 - `username` 与 `password` **同时为空** = 关闭认证（局域网裸奔，谨慎）。
 - 会话密钥在进程启动时随机生成：**重启 `dsh web` 后所有已登录会话失效**，需重新登录。
 
+## 设置页面（改端口 / 账号密码）
+
+重启 `dsh web` 后，打开 DSH 设置（左下角齿轮）→ 「局域网代理」：
+
+- **运行状态**：监听地址、当前监听端口、转发目标、认证开关、会话有效期；并标注当前是否使用了已保存的运行配置。
+- **修改设置**：可改 **转发目标端口**（DSH 服务端口）、**用户名**、**密码**（留空 = 保持不变）。点「保存并重启」后，配置写入 `$DSH_HOME/dsh-lan-proxy.json` 并**立即重启转发服务**；重启后所有已登录会话失效，需重新登录。
+
+设置页的修改会**持久化**并优先于 profile 的 `cordis.patch.yml`；`listenHost` / `listenPort` 等仍只能通过 `cordis.patch.yml` 修改。插件通过宿主 RPC 通道 `/dsh-lan-proxy`（`status` / `update`）提供该能力，通道仅限 loopback 权威（经代理改写后 LAN 端同样可访问）。
+
 ## 使用
 
 1. 重启 `dsh web`，启动日志会打印访问地址：
@@ -60,9 +70,9 @@ pnpm run check   # typecheck + test + build
 pnpm run smoke   # 对正在运行的 DSH（127.0.0.1:3080）做全流程冒烟测试
 ```
 
-- `src/` — TypeScript 源码；`src/proxy.ts` 是纯 node 代理核心（无 cordis 依赖，可独立测试），`src/index.ts` 是 cordis 插件入口。
-- `lib/` — 提交构建产物（`lib/index.cjs` 为完全自包含单文件：schemastery 与 http-proxy 均已内联，profile 无需额外运行时依赖）。
-- `tests/` — vitest：认证原语、登录页/polyfill 纯函数、以及带真实上游（HTTP + WebSocket）的代理集成测试。
+- `src/` — TypeScript 源码；`src/proxy.ts` 是纯 node 代理核心（无 cordis 依赖，可独立测试），`src/controller.ts` 是代理控制器（启动/重启/状态/更新，负责配置持久化），`src/index.ts` 是 cordis 插件入口（含 `/dsh-lan-proxy` RPC 通道），`src/client/` 是浏览器设置页。
+- `lib/` — 提交构建产物（`lib/index.cjs` 为完全自包含单文件：schemastery、http-proxy、dsh-home-paths 均已内联；`lib/client.js` 为浏览器端单文件，仅 external react）。
+- `tests/` — vitest：认证原语、登录页/polyfill 纯函数、代理集成测试（HTTP + WebSocket）、控制器（真实上游 + 临时配置文件）、设置页 jsdom 渲染。
 - 宿主编排测试（跑在真实 DSH 进程里的插件生命周期）见 `scripts/smoke.mjs` 思路 + 手动重启验证。
 
 ## 认证细节

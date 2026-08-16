@@ -4,6 +4,7 @@ A DeepSeek Harness plugin that exposes the local DSH web app (default `127.0.0.1
 
 - **HTTP + WebSocket reverse proxy** — real-time streams keep working.
 - **Web-based auth** — a self-contained login page issues an HMAC-signed, expiring session cookie (`HttpOnly`, `SameSite=Lax`); HTTP Basic Auth remains as a fallback for scripts and WebSocket clients.
+- **Settings page** — DSH settings → "LAN Proxy": shows the running port and forward target, and edits the forward target port, username, and password; saving persists the patch to `$DSH_HOME/dsh-lan-proxy.json` and immediately restarts the forwarding service.
 - **Out-of-the-box compatibility fixes** — `Host`/`Origin` rewriting (passes the DSH `/api` same-origin trust fence from the LAN) and a `crypto.randomUUID` polyfill injected into proxied HTML (non-secure LAN contexts lack it, which would break every RPC).
 - **Lives inside `dsh web`** — no separate process; configured through the profile's `cordis.patch.yml`.
 
@@ -39,6 +40,15 @@ All knobs have schema defaults; override them in the **profile's `cordis.patch.y
 - Setting **both** `username` and `password` empty disables auth entirely (open LAN access — not recommended).
 - The session secret is generated per process: **restarting `dsh web` invalidates all sessions**, so users simply log in again.
 
+## Settings page (port / credentials)
+
+After restarting `dsh web`, open DSH settings (gear icon) → "LAN Proxy":
+
+- **Status**: listen address, running port, forward target, auth state, session lifetime — plus whether a saved runtime config is in effect.
+- **Edit settings**: change the **forward target port** (DSH service port), **username**, and **password** (leave empty to keep current). "Save & restart" writes `$DSH_HOME/dsh-lan-proxy.json` and **immediately restarts the forwarding service**; all active sessions are invalidated.
+
+Settings-page changes persist and take precedence over the profile's `cordis.patch.yml`; `listenHost` / `listenPort` remain cordis-only. The page talks to the host through the `/dsh-lan-proxy` Connection RPC channel (`status` / `update`), scoped to loopback authority (still reachable from the LAN via the proxy's Host rewrite).
+
 ## Usage
 
 1. Restart `dsh web`; the startup log prints the URLs:
@@ -59,9 +69,9 @@ pnpm run check   # typecheck + test + build
 pnpm run smoke   # full live smoke test against a running DSH on 127.0.0.1:3080
 ```
 
-- `src/proxy.ts` — the pure-node proxy core (no cordis, independently testable); `src/index.ts` — the cordis plugin entry.
-- `lib/` — committed build artifact; `lib/index.cjs` is a fully self-contained single file (schemastery and http-proxy inlined), so the profile needs no extra runtime dependencies.
-- `tests/` — vitest: auth primitives, pure functions, and integration tests against a real in-process upstream (HTTP + WebSocket).
+- `src/` — TypeScript source. `src/proxy.ts` is the pure-node proxy core (no cordis, independently testable); `src/controller.ts` is the proxy controller (start/restart/status/update plus settings persistence); `src/index.ts` is the cordis plugin entry (including the `/dsh-lan-proxy` RPC channel); `src/client/` is the browser settings section.
+- `lib/` — committed build artifacts; `lib/index.cjs` is a fully self-contained host bundle (schemastery, http-proxy, dsh-home-paths inlined) and `lib/client.js` the browser bundle (react only external).
+- `tests/` — vitest: auth primitives, pure functions, proxy integration (HTTP + WebSocket), the controller against a real in-process upstream with a temp settings file, and a jsdom render of the settings section.
 
 ## Security notes
 

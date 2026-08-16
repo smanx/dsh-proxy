@@ -4,10 +4,10 @@ Standing orders for this repository. The product contract lives in [README.zh.md
 
 ## Layout
 
-- `src/` — TypeScript source. `src/proxy.ts` is the pure-node proxy core (auth gate, HTTP + WebSocket forwarding, Host/Origin alignment, polyfill injection) with **no cordis dependency**; `src/index.ts` is the cordis plugin entry (Config schema, effect lifecycle, startup logs); `src/session.ts` / `src/login.ts` / `src/polyfill.ts` are pure, unit-tested helpers.
-- `lib/` — committed build artifacts. `lib/index.cjs` is the fully self-contained single file the profile loads (schemastery and http-proxy bundled inline; `@deepseek-ai/cordis` is type-only). **Every source change that should be installable must rebuild and commit `lib/` in the same commit.**
-- `tests/` — vitest suites at the repo root, importing internals by relative path (`../src/*.ts`).
-- `scripts/smoke.mjs` — live smoke test against a running DSH (`pnpm run smoke`); not part of `pnpm run check`.
+- `src/` — TypeScript source. `src/proxy.ts` is the pure-node proxy core (auth gate, HTTP + WebSocket forwarding, Host/Origin alignment, polyfill injection) with **no cordis dependency**; `src/controller.ts` is the proxy controller (effective options = cordis base + persisted overlay, start/stop/restart, status/update verbs, persistence to `$DSH_HOME/dsh-lan-proxy.json`); `src/index.ts` is the cordis plugin entry (Config schema, effect lifecycle, the `/dsh-lan-proxy` Connection RPC channel); `src/session.ts` / `src/login.ts` / `src/polyfill.ts` / `src/settings.ts` / `src/contract.ts` are pure, unit-tested helpers and the shared wire contract; `src/client/` is the browser settings section (locales, styles, React component, plugin body).
+- `lib/` — committed build artifacts. `lib/index.cjs` is the fully self-contained host bundle the profile loads (schemastery, http-proxy, dsh-home-paths bundled inline; `@deepseek-ai/cordis` is type-only); `lib/client.js` is the browser bundle served at `/plugins/dsh-lan-proxy/client.js` (only react is external). **Every source change that should be installable must rebuild and commit `lib/` in the same commit.**
+- `tests/` — vitest suites at the repo root, importing internals by relative path (`../src/*.ts`; the section spec is jsdom).
+- `scripts/smoke.mjs` — live smoke test against a running DSH (`pnpm run smoke`), including a plugin-contract phase that drives the bundled `apply()` with a fake ctx (redirecting `$DSH_HOME` to a temp dir so the real persisted config is never touched); not part of `pnpm run check`.
 
 ## Build and checks
 
