@@ -78,10 +78,10 @@ pnpm run smoke   # 对正在运行的 DSH（127.0.0.1:3080）做全流程冒烟�
 ## 认证细节
 
 - **启用条件**：`username` 与 `password` **同时非空**才启用密码登录（默认均为空 = 开放访问）；只设置其一仍保持关闭。
-- **外部挑战**：启用后，未认证的页面导航 → **401 + `WWW-Authenticate: Basic`**（浏览器弹出 Basic Auth 登录框），响应体即登录页（也可直接访问 `/login` 走 Cookie 登录）；未认证的 `/api/*` → 401 JSON + Basic 挑战。
+- **外部访问**：启用后，未认证的**页面导航 → 302 到登录页**（Cookie 登录——故意不向浏览器发 Basic 挑战，避免浏览器缓存过 Basic 凭据时静默自动登录、永远看不到登录框）；未认证的 `/api/*` 与脚本/工具 → **401 JSON + `WWW-Authenticate: Basic`**；WebSocket 拒绝同样带挑战头。
 - 登录页：`GET /login`、`POST /login`（urlencoded）、`GET /logout`；成功登录签发会话 Cookie。
 - 会话 Cookie：`dsh_lan_session=<base64url(payload)>.<base64url(hmac-sha256)>`，`payload = <过期秒数>.<用户名>`；比较用常量时间。
-- Basic Auth 与 Cookie 均可通过 HTTP 与 WebSocket 握手校验（浏览器走 Cookie 或弹窗，curl/脚本走 Basic 头）。
+- Basic Auth 与 Cookie 均可通过 HTTP 与 WebSocket 握手校验（浏览器走 Cookie，curl/脚本走 Basic 头）。
 - 登录表单体上限 16 KiB；Cookie `HttpOnly`（脚本不可读）、`SameSite=Lax`（跨站 POST 不带 Cookie）。
 
 ## 安全提示

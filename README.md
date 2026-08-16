@@ -3,7 +3,7 @@
 A DeepSeek Harness plugin that exposes the local DSH web app (default `127.0.0.1:3080`) on a **second, authenticated port** for LAN access.
 
 - **HTTP + WebSocket reverse proxy** — real-time streams keep working.
-- **Password login (off by default)** — username and password default to empty, so the LAN surface is open until configured; enabling requires setting **both** in the settings page, after which external clients face the browser's native **Basic Auth** dialog with the login page as a fallback (HMAC-signed, expiring session cookie, `HttpOnly`, `SameSite=Lax`); scripts use the Basic Auth header.
+- **Password login (off by default)** — username and password default to empty, so the LAN surface is open until configured; enabling requires setting **both** in the settings page, after which unauthenticated browser navigations are redirected to the **login page** (cookie session — deliberately no Basic challenge for navigations, so a browser that cached Basic credentials from an earlier setup can never auto-login invisibly); scripts and `/api` keep the `401 + WWW-Authenticate: Basic` challenge.
 - **Settings page** — DSH settings → "LAN Proxy": shows the running ports, whether password login is enabled, and edits the forward target port, username, and password; saving persists the patch to `$DSH_HOME/dsh-lan-proxy.json` and immediately restarts the forwarding service.
 - **Out-of-the-box compatibility fixes** — `Host`/`Origin` rewriting (passes the DSH `/api` same-origin trust fence from the LAN) and a `crypto.randomUUID` polyfill injected into proxied HTML (non-secure LAN contexts lack it, which would break every RPC).
 - **Lives inside `dsh web`** — no separate process; configured through the profile's `cordis.patch.yml`.
