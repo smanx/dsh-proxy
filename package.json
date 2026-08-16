@@ -1,0 +1,60 @@
+{
+  "name": "dsh-lan-proxy",
+  "description": "LAN reverse proxy for the DeepSeek Harness web app: forwards the local DSH port to a second, authenticated port (HTTP + WebSocket) with a web-based login page and a Basic Auth fallback.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.cjs",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "dsh.plugin.json",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis",
+    "@deepseek-ai/dsh-host-webserver": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-webserver",
+    "@deepseek-ai/schemastery": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/schemastery",
+    "@types/http-proxy": "^1.17.15",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.0",
+    "http-proxy": "^1.18.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8",
+    "ws": "^8.18.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
