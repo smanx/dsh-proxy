@@ -26,6 +26,8 @@ dsh plugin --profile web add github:smanx/dsh-proxy#master
 dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
+The installed package is **`@smanx/dsh-proxy`** (scoped, with the username prefix) and shows up as `@smanx/dsh-proxy@0.1.0` in `dsh plugin ls`.
+
 Then **restart `dsh web`**. If port 3081 is taken (e.g. the standalone dsh-proxy is still running), stop it first or change `listenPort` below.
 
 ## Configuration

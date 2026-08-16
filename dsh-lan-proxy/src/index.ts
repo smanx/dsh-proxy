@@ -27,7 +27,7 @@ export { lanAddresses, startLanProxy } from './proxy.ts'
 export type { LanProxyHandle, LanProxyOptions } from './proxy.ts'
 
 /** Stable Cordis plugin name (the Loader entry and package name). */
-export const name = 'dsh-proxy'
+export const name = '@smanx/dsh-proxy'
 
 /** Services required before load: the web server (upstream port source) and the Connection RPC registry. */
 export const inject = ['webServer', 'connection']

@@ -2675,7 +2675,7 @@ var RPC_START_ENDPOINT = "start";
 var RPC_STOP_ENDPOINT = "stop";
 
 // src/index.ts
-var name = "dsh-proxy";
+var name = "@smanx/dsh-proxy";
 var inject = ["webServer", "connection"];
 var Config = Schema.object({
   listenHost: Schema.string().default("0.0.0.0"),

@@ -1,4 +1,4 @@
-window.__ModuleLoader__.load({ id: 'dsh-proxy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;
+window.__ModuleLoader__.load({ id: '@smanx/dsh-proxy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;
 "use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;

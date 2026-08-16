@@ -157,7 +157,7 @@ async function pluginContractPhase() {
   check(
     'plugin exports name/inject/Config/apply',
     ['name', 'inject', 'Config', 'apply'].every((key) => key in plugin)
-      && plugin.name === 'dsh-proxy'
+      && plugin.name === '@smanx/dsh-proxy'
       && plugin.inject.includes('webServer')
       && plugin.inject.includes('connection'),
   )

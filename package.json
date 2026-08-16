@@ -1,6 +1,6 @@
 {
-  "name": "dsh-proxy",
-  "description": "DSH plugin (name matches the repository): LAN reverse proxy with native Basic Auth and a settings page. Source lives in this repo's dsh-lan-proxy/ subdirectory; this root package makes the plugin installable from the repository itself (git/github: specs install the root).",
+  "name": "@smanx/dsh-proxy",
+  "description": "DSH plugin (scoped package @smanx/dsh-proxy, matching the repository): LAN reverse proxy with native Basic Auth and a settings page. Source lives in this repo's dsh-lan-proxy/ subdirectory; this root package makes the plugin installable from the repository itself (git/github: specs install the root).",
   "version": "0.1.0",
   "license": "MIT",
   "type": "module",

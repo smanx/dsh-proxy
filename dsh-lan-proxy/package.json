@@ -1,5 +1,5 @@
 {
-  "name": "dsh-proxy",
+  "name": "@smanx/dsh-proxy",
   "description": "LAN reverse proxy for the DeepSeek Harness web app: forwards the local DSH port to a second, authenticated port (HTTP + WebSocket) with a web-based login page and a Basic Auth fallback.",
   "version": "0.1.0",
   "license": "MIT",

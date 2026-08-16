@@ -16,7 +16,7 @@ import z from '@deepseek-ai/schemastery';
 export { lanAddresses, startLanProxy } from './proxy.ts';
 export type { LanProxyHandle, LanProxyOptions } from './proxy.ts';
 /** Stable Cordis plugin name (the Loader entry and package name). */
-export declare const name = "dsh-proxy";
+export declare const name = "@smanx/dsh-proxy";
 /** Services required before load: the web server (upstream port source) and the Connection RPC registry. */
 export declare const inject: string[];
 /** Plugin configuration, validated at load by the Loader. */
