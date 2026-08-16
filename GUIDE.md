@@ -10,7 +10,7 @@ dsh-proxy 是一个 HTTP + WebSocket 反向代理：把局域网端口转发到�
 - **HTTP + WebSocket 全协议转发**：任务状态、日志等实时推送不失效
 - **Basic Auth 访问保护**：默认账号 `admin` / `admin`，局域网访问也安全
 - **端口与账号密码均可手动配置**：默认值只是预填，可自由修改端口号和用户名/密码，也支持命令行参数一键指定
-- **自动修复**：Origin 同源校验对齐、`crypto.randomUUID` 兼容注入，开箱即用
+- **自动修复**：Origin 同源校验对齐、`crypto.randomUUID` 兼容注入、manifest/favicon 免认证，开箱即用
 - **双击即用**：无需安装 Node 等任何运行时；配置自动记忆，下次启动直接回车
 
 ## 项目地址
@@ -87,5 +87,8 @@ dsh-proxy-win-x64.exe --source-port 8080 --target-port 8081 --user zhangsan --pa
 
 - **端口被占用**：换一个目标端口重试即可。
 - **源端口和目标端口不能相同**：两个端口必须不同。
+- **浏览器控制台报 `/manifest.webmanifest` 401**：浏览器抓取 PWA manifest 时不会
+  携带登录凭据，属已知行为；代理已把 manifest/favicon 等公开静态资源设为免认证
+  （只含应用名/图标），页面、API、WebSocket 仍需登录，可放心使用。
 - **Windows 提示「未知发布者」**：程序未签名，属正常现象，点「更多信息 → 仍要运行」。
 - **更多细节**：见仓库根目录的 `README.md`。

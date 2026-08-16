@@ -132,6 +132,17 @@ established` / 一直 pending。
 - 注入前：`host.describe` 请求不发出，mux/host 握手失败，无限重试 ❌
 - 注入后：`host.describe` 200，mux/host 均 `101 Switching Protocols`，实时正常 ✅
 
+### 常见 401：/manifest.webmanifest（浏览器抓取 PWA manifest 不带认证）
+
+启用 Basic Auth 后，浏览器抓取 `<link rel="manifest">` 声明的
+`/manifest.webmanifest` 时**不会携带 Basic Auth 凭据**（该标签未带
+`crossorigin="use-credentials"`），若代理对所有路径强制认证，控制台会一直报
+`Failed to load resource: 401`。
+
+解决：代理内置公开静态资源白名单，`/manifest.webmanifest`、`/favicon.svg`、
+`/favicon.ico` 三个路径跳过认证检查（只含应用名/图标，无敏感数据）；
+页面、API、WebSocket 仍全部要求认证。
+
 ## 四、验证
 
 ```bash

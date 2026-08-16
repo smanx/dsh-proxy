@@ -7,7 +7,8 @@ dsh-proxy 的 **Go 轻量版**：HTTP + WebSocket 反向代理（转发到本地
 ## 功能
 
 - HTTP + WebSocket 反向代理（Go 标准库 `httputil.ReverseProxy` 原生支持 WS 升级）
-- Basic Auth（默认 `admin/admin`，HTTP 与 WS 握手统一校验）
+- Basic Auth（默认 `admin/admin`，HTTP 与 WS 握手统一校验；公开静态资源如
+  `/manifest.webmanifest` 免认证，避免浏览器抓取 manifest 时报 401）
 - Origin 对齐 + Host 改写（通过 DSH `/api` 同源校验，LAN 访问 WS 不 403）
 - HTML 注入 `crypto.randomUUID` polyfill（LAN 非安全上下文下实时通道可用）
 - 交互式启动：4 项配置预填可编辑（源端口 3080 / 目标端口 3081 / admin / admin）

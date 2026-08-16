@@ -30,6 +30,12 @@ function startProxy({ listenPort, dshPort, username = '', password = '', host = 
   const AUTH_USER = String(username);
   const AUTH_PASS = String(password);
 
+  // 公开静态资源白名单：只含应用名/图标等非敏感数据（PWA manifest、站点图标）。
+  // 浏览器抓取 <link rel="manifest"> 时（标签未带 crossorigin="use-credentials"）
+  // 不会携带 Basic Auth 凭据，若这些路径也强制认证，控制台会一直报
+  // /manifest.webmanifest 401。因此对白名单路径跳过认证；页面、API、WS 仍全部要求认证。
+  const PUBLIC_PATHS = new Set(['/manifest.webmanifest', '/favicon.svg', '/favicon.ico']);
+
   function safeEqual(a, b) {
     const ba = Buffer.from(String(a));
     const bb = Buffer.from(String(b));
@@ -101,7 +107,8 @@ function startProxy({ listenPort, dshPort, username = '', password = '', host = 
   }
 
   const server = http.createServer((req, res) => {
-    if (!checkAuth(req)) {
+    const pathname = new URL(req.url ?? '/', 'http://proxy').pathname;
+    if (!PUBLIC_PATHS.has(pathname) && !checkAuth(req)) {
       rejectUnauthorized(res);
       return;
     }

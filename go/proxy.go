@@ -29,6 +29,16 @@ const polyfill = `<script>(function(){try{if(typeof crypto!=="undefined"&&crypto
 
 const authRealm = "dsh-proxy"
 
+// publicPaths 公开静态资源白名单：只含应用名/图标等非敏感数据（PWA manifest、站点图标）。
+// 浏览器抓取 <link rel="manifest"> 时（标签未带 crossorigin="use-credentials"）
+// 不会携带 Basic Auth 凭据，若这些路径也强制认证，控制台会一直报
+// /manifest.webmanifest 401。因此对白名单路径跳过认证；页面、API、WS 仍全部要求认证。
+var publicPaths = map[string]bool{
+	"/manifest.webmanifest": true,
+	"/favicon.svg":          true,
+	"/favicon.ico":          true,
+}
+
 // startProxy 启动反向代理：监听 0.0.0.0:listenPort，转发到 127.0.0.1:dshPort。
 // username/password 均非空时启用 Basic Auth（HTTP + WebSocket 握手都要认证）。
 // 返回 http.ErrServerClosed 表示被优雅关闭。
@@ -73,7 +83,7 @@ func startProxy(listenPort, dshPort int, username, password string) error {
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !checkAuth(r, username, password) {
+		if !publicPaths[r.URL.Path] && !checkAuth(r, username, password) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="`+authRealm+`"`)
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusUnauthorized)
