@@ -2655,11 +2655,13 @@ var ProxyController = class {
     this.log("info", "dsh-lan-proxy: settings updated via the settings page; forwarding service restarted");
     const bothSet = this.options.username !== "" && this.options.password !== "";
     const anySet = this.options.username !== "" || this.options.password !== "";
+    const notice = anySet && !bothSet ? "credentials-partial" : "saved";
     return {
       ok: true,
       result: {
         status: await this.refreshStatus(),
-        message: anySet && !bothSet ? "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09" : "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1"
+        notice,
+        message: notice === "credentials-partial" ? "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09" : "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1"
       }
     };
   }

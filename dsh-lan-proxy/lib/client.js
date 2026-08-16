@@ -168,7 +168,7 @@ function SettingsSection({ rpc, t }) {
         const value = result.value;
         setStatus(value.status);
         applyPhase("ok");
-        setMessage(value.message);
+        setMessage(t(value.notice === "credentials-partial" ? "form.updatedPartial" : "form.updated"));
         applyStatusToForm(value.status);
       } else {
         setError(result.error.message);
@@ -366,6 +366,7 @@ var zh = {
   "form.invalidPort": "\u7AEF\u53E3\u5FC5\u987B\u662F 1\u201365535 \u7684\u6574\u6570",
   "form.portConflict": "\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\u4E0D\u80FD\u4E0E\u9ED8\u8BA4\u670D\u52A1\u7AEF\u53E3\u76F8\u540C",
   "form.updated": "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1",
+  "form.updatedPartial": "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09",
   "form.failed": "\u4FDD\u5B58\u5931\u8D25"
 };
 var en = {
@@ -406,6 +407,7 @@ var en = {
   "form.invalidPort": "Port must be an integer between 1 and 65535",
   "form.portConflict": "Proxy port must differ from the default service port",
   "form.updated": "Saved and the forwarding service restarted",
+  "form.updatedPartial": "Saved and restarted (note: password login requires BOTH username and password)",
   "form.failed": "Save failed"
 };
 

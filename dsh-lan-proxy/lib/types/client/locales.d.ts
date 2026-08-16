@@ -39,6 +39,7 @@ export declare const zh: {
     'form.invalidPort': string;
     'form.portConflict': string;
     'form.updated': string;
+    'form.updatedPartial': string;
     'form.failed': string;
 };
 /** The `dsh-lan-proxy` namespace key union. */

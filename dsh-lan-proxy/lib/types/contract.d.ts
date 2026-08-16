@@ -62,6 +62,8 @@ export interface LanProxyUpdatePayload {
 export interface LanProxyUpdateResult {
     /** The status after the forwarding service restarted. */
     status: LanProxyStatus;
-    /** Human-readable confirmation message. */
+    /** Machine-readable outcome the settings page localizes into the UI language. */
+    notice: 'saved' | 'credentials-partial';
+    /** Deprecated human-readable confirmation (Chinese); kept for scripts. */
     message: string;
 }

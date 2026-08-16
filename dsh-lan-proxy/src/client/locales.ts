@@ -47,6 +47,7 @@ export const zh = {
   'form.invalidPort': '端口必须是 1–65535 的整数',
   'form.portConflict': '代理服务端口不能与默认服务端口相同',
   'form.updated': '已保存并重启转发服务',
+  'form.updatedPartial': '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）',
   'form.failed': '保存失败',
 } satisfies Record<string, string>
 
@@ -98,5 +99,6 @@ export const en: Record<LanProxyKey, string> = {
   'form.invalidPort': 'Port must be an integer between 1 and 65535',
   'form.portConflict': 'Proxy port must differ from the default service port',
   'form.updated': 'Saved and the forwarding service restarted',
+  'form.updatedPartial': 'Saved and restarted (note: password login requires BOTH username and password)',
   'form.failed': 'Save failed',
 }

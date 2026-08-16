@@ -210,7 +210,9 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         const value = result.value as LanProxyUpdateResult
         setStatus(value.status)
         applyPhase('ok')
-        setMessage(value.message)
+        // The host returns a machine-readable notice; the copy is localized
+        // here so it follows the current UI language.
+        setMessage(t(value.notice === 'credentials-partial' ? 'form.updatedPartial' : 'form.updated'))
         applyStatusToForm(value.status)
       } else {
         setError(result.error.message)

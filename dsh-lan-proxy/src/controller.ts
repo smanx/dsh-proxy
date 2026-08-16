@@ -223,11 +223,13 @@ export class ProxyController {
     this.log('info', 'dsh-lan-proxy: settings updated via the settings page; forwarding service restarted')
     const bothSet = this.options.username !== '' && this.options.password !== ''
     const anySet = this.options.username !== '' || this.options.password !== ''
+    const notice: 'saved' | 'credentials-partial' = anySet && !bothSet ? 'credentials-partial' : 'saved'
     return {
       ok: true,
       result: {
         status: await this.refreshStatus(),
-        message: anySet && !bothSet
+        notice,
+        message: notice === 'credentials-partial'
           ? '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）'
           : '已保存并重启转发服务',
       },
