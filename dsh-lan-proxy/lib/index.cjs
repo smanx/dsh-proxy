@@ -1585,7 +1585,7 @@ var Time;
   Time2.template = template;
 })(Time || (Time = {}));
 
-// node_modules/.pnpm/@deepseek-ai+schemastery@fi_6561064e2bd0849611bfbb66084d0b4d/node_modules/@deepseek-ai/schemastery/lib/index.mjs
+// node_modules/.pnpm/@deepseek-ai+schemastery@fi_8c159533009867f83ae0f7b1624fd5a6/node_modules/@deepseek-ai/schemastery/lib/index.mjs
 var kSchema = /* @__PURE__ */ Symbol.for("schemastery");
 var kValidationError = /* @__PURE__ */ Symbol.for("ValidationError");
 globalThis.__schemastery_index__ ??= 0;
@@ -2187,7 +2187,7 @@ defineMethod("transform", [
   "preserve"
 ], ({ inner }, isInner) => inner.toString(isInner));
 
-// node_modules/.pnpm/@deepseek-ai+dsh-home-paths_b68b9ced0869bd6d14d23f32c4693ca8/node_modules/@deepseek-ai/dsh-home-paths/lib/index.js
+// node_modules/.pnpm/@deepseek-ai+dsh-home-paths_70cff0d5b6c54c928a4e7652aeb41900/node_modules/@deepseek-ai/dsh-home-paths/lib/index.js
 var import_node_os = require("node:os");
 var import_node_path = require("node:path");
 var DSH_HOME_DIR_NAME = ".dsh";
