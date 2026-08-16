@@ -140,21 +140,12 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     res.end(UNAUTHORIZED_JSON)
   }
 
-  /**
-   * Challenge an unauthenticated browser navigation with HTTP Basic Auth:
-   * the 401 plus WWW-Authenticate makes the browser show its native Basic
-   * login dialog (the external Basic gate), and the login page served as the
-   * response body is what the user sees when the dialog is dismissed — the
-   * web-based fallback.
-   */
-  const challenge = (res: http.ServerResponse): void => {
-    res.writeHead(401, {
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'no-store',
-      'www-authenticate': `Basic realm="${AUTH_REALM}"`,
-    })
-    res.end(loginPage(false, Math.max(1, Math.round(sessionTtlSeconds / 3600))))
-  }
+  // Browser navigations deliberately use the login page (302), never a Basic
+  // challenge: browsers cache Basic credentials per origin and silently replay
+  // them on any 401 — a user who once logged in (e.g. via the standalone
+  // dsh-proxy's Basic popup) would be auto-authenticated forever and never see
+  // a prompt. The cookie-based login page is immune to that cache, so every
+  // fresh session visibly requires login. Basic stays for /api and scripts.
 
   const handleLogin = (req: http.IncomingMessage, res: http.ServerResponse): void => {
     if (req.method === 'POST') {
@@ -223,7 +214,7 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
       }
       const accept = String(req.headers.accept ?? '')
       if (accept.includes('text/html')) {
-        challenge(res)
+        redirect(res, '/login')
         return
       }
       deny(res)
@@ -265,12 +256,12 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
       // Stop accepting new connections; the listener is released immediately
       // so a restart can rebind the same port. In-flight responses (e.g. the
       // settings-page update answer travelling back through the proxy) get a
-      // short grace before connections are force-closed.
+      // short grace before connections are force-closed. The timer stays
+      // referenced so it always fires even under a loaded event loop.
       server.close(() => resolveClose())
       const timer = setTimeout(() => {
         server.closeAllConnections()
-      }, 500)
-      timer.unref?.()
+      }, 250)
     })
   }
 
