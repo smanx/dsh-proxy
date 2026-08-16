@@ -1,5 +1,7 @@
 # dsh-proxy
 
+[English](README.en.md) | 中文
+
 > 面向使用者的快速上手与下载指引见 **[GUIDE.md](GUIDE.md)**（项目简介、下载地址、快速开始）。
 
 HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `127.0.0.1:3080`。
@@ -54,8 +56,12 @@ macOS/Linux 版传到对应系统后先 `chmod +x`。
 面向已在使用 DSH（DeepSeek Harness）的用户：把代理作为插件装进 web profile，**随 `dsh web` 启停**，无需单独进程，也不用下载可执行文件。
 
 - 与独立版相同的原生 **Basic Auth**（浏览器弹窗）与 HTTP + WebSocket 全协议转发
-- **设置页面**（DSH 设置 → 局域网代理）：状态红绿灯、启动/停止、改转发目标端口与用户名密码（表单回写当前值，留空即设为空）
+- **设置页面**（DSH 设置 → 局域网代理）：状态红绿灯、启动/停止、改代理监听端口与用户名密码（表单回写当前值，留空即设为空）
 - 默认空凭据 = 密码登录关闭；**同时设置**用户名和密码才启用
+
+<p align="center">
+  <img src="doc/image-zh.png" alt="dsh-lan-proxy 设置页面（中文界面）" width="720" />
+</p>
 
 ```bash
 dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy

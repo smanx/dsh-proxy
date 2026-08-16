@@ -1,0 +1,97 @@
+# dsh-proxy
+
+English | [中文](README.md)
+
+> For a quick start and download guide, see **[GUIDE.md](GUIDE.md)** (project intro, download links, quick start; Chinese).
+
+An HTTP + WebSocket reverse proxy that forwards a LAN port to the local DSH service `127.0.0.1:3080`.
+Supports Basic Auth, LAN access, and `crypto.randomUUID` polyfill injection.
+
+The project ships **three forms**: two standalone executables (feature-identical: interactive start, config memory, non-interactive CLI flags), plus a **DSH plugin** (integrated into `dsh web`, starts/stops with DSH, with a settings page):
+
+| Directory | Form | Notes |
+|---|---|---|
+| [`go/`](go/) | Go static single file (6-7 MB) | Lightweight; Go standard library, ~95% smaller, recommended |
+| [`node/`](node/) | Node.js SEA single file (83-119 MB) | Original; packaged with Node's official SEA, no Node install needed |
+| [`dsh-lan-proxy/`](dsh-lan-proxy/) | **DSH plugin** | Integrated into DSH: starts/stops with `dsh web`, settings page for port/credentials/start-stop, native Basic Auth, config persisted to `$DSH_HOME/dsh-lan-proxy.json` |
+
+## Features
+
+- HTTP + WebSocket reverse proxy (Go uses stdlib `httputil.ReverseProxy`, native WS upgrade support)
+- Basic Auth (default `admin/admin`, checked uniformly on HTTP and WS handshakes; public static assets such as
+  `/manifest.webmanifest` bypass auth so the browser does not get a 401 when fetching the manifest)
+- Origin alignment + Host rewrite (passes DSH's `/api` same-origin check, so LAN WebSocket is not 403)
+- `crypto.randomUUID` polyfill injected into HTML (real-time channels work in non-secure LAN contexts)
+- Interactive start: 4 pre-filled editable fields (source port 3080 / target port 3081 / admin / admin), **ports and credentials are editable**
+- Config memory: `config.json` next to the executable, pre-filled on next start
+- Non-interactive CLI flags (for scheduled tasks / automation):
+  `dsh-proxy --source-port 3080 --target-port 3081 --user admin --pass admin`
+
+## Build
+
+```bash
+# Node build (output in node/dist/)
+cd node
+npm install
+npm run build          # all 5 platforms (downloads the Node binary on first run, cached in .sea-cache/)
+npm run build:win      # Windows only
+
+# Go build (output in go/dist/, no Go runtime needed)
+cd go
+./build.ps1            # all 5 platforms
+./build.ps1 -Target win-x64
+```
+
+Artifacts (5 platforms each for both versions: `win-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`):
+- Node: `dsh-proxy-<platform>` (e.g. `dsh-proxy-win-x64.exe`)
+- Go: `dsh-proxy-go-<platform>` (e.g. `dsh-proxy-go-win-x64.exe`, avoids colliding with the Node name)
+
+On macOS/Linux, `chmod +x` the file first.
+
+The version shown in the startup banner is injected at build time: CI takes the tagged version (e.g. `v1.1.0`);
+local builds may pass `-Version` (Go) or `--version` (Node), defaulting to the latest git tag.
+
+## DSH plugin (dsh-lan-proxy/)
+
+For users who already run DSH (DeepSeek Harness): install the proxy as a plugin into the web profile — it **starts and stops with `dsh web`**, no separate process or downloadable binary needed.
+
+- Same native **Basic Auth** (browser dialog) and full HTTP + WebSocket forwarding as the standalone builds
+- **Settings page** (DSH settings → LAN Proxy): status lights, start/stop, edit the proxy listen port, username, and password (form pre-fills current values; empty means set blank)
+- Empty credentials by default = password login off; password login turns on only when **both** username and password are set
+
+<p align="center">
+  <img src="doc/image-en.png" alt="dsh-lan-proxy settings page (English UI)" width="720" />
+</p>
+
+```bash
+dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy
+```
+
+After restarting `dsh web`, visit `http://<your-LAN-IP>:3081` and the browser shows the native Basic Auth dialog.
+Details: [`dsh-lan-proxy/README.md`](dsh-lan-proxy/README.md).
+
+## Releases
+
+Pushing a `v*` tag (e.g. `v1.1.0`) triggers GitHub Actions, which **builds both the Node and Go versions**
+and publishes them to the GitHub Release (with SHA256SUMS.txt checksums); you can also trigger it manually from the Actions page:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+Workflow: `.github/workflows/release.yml`.
+
+## Verification
+
+```bash
+# Non-interactive start (example port 3091)
+./dsh-proxy-win-x64.exe --source-port 3080 --target-port 3091 --user admin --pass admin
+
+# No credentials → 401; with credentials → 200
+curl -i http://127.0.0.1:3091/
+curl -u admin:admin http://127.0.0.1:3091/
+
+# WebSocket handshake → OPEN
+node -e "const ws=new WebSocket('ws://127.0.0.1:3091/api/events.mux',{headers:{Authorization:'Basic '+Buffer.from('admin:admin').toString('base64')}});ws.onopen=()=>{console.log('OPEN');ws.close()}"
+```
