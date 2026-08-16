@@ -105,11 +105,11 @@ export const cssText = `
 }
 .dsh_lanproxy_dotOn {
   background: var(--dsw-alias-state-success-primary, #3fb950);
-  box-shadow: 0 0 0 3px var(--dsw-alias-state-success-secondary, rgba(35, 134, 54, 0.25));
+  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.2);
 }
 .dsh_lanproxy_dotOff {
   background: var(--dsw-alias-state-error-primary, #f85149);
-  box-shadow: 0 0 0 3px var(--dsw-alias-state-error-secondary, rgba(248, 81, 73, 0.15));
+  box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.2);
 }
 .dsh_lanproxy_portValue {
   color: var(--dsw-alias-label-primary, #e6edf3);
@@ -125,19 +125,20 @@ export const cssText = `
 .dsh_lanproxy_statusTextOff {
   color: var(--dsw-alias-state-error-primary, #f85149);
 }
+/* Badges: text color only, no tinted background (the user asked for the
+   status text color without the red/green fill). */
 .dsh_lanproxy_badge {
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 12px;
   line-height: 18px;
+  background: transparent;
 }
 .dsh_lanproxy_badgeOn {
   color: var(--dsw-alias-state-success-primary, #3fb950);
-  background: var(--dsw-alias-state-success-secondary, rgba(35, 134, 54, 0.25));
 }
 .dsh_lanproxy_badgeOff {
   color: var(--dsw-alias-state-error-primary, #f85149);
-  background: var(--dsw-alias-state-error-secondary, rgba(248, 81, 73, 0.15));
 }
 .dsh_lanproxy_form {
   display: flex;
@@ -162,6 +163,7 @@ export const cssText = `
   line-height: 18px;
 }
 .dsh_lanproxy_input {
+  box-sizing: border-box;
   width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--dsw-alias-border-l2, #30363d);
