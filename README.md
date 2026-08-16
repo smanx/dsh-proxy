@@ -3,8 +3,8 @@
 A DeepSeek Harness plugin that exposes the local DSH web app (default `127.0.0.1:3080`) on a **second, authenticated port** for LAN access.
 
 - **HTTP + WebSocket reverse proxy** — real-time streams keep working.
-- **Web-based auth** — a self-contained login page issues an HMAC-signed, expiring session cookie (`HttpOnly`, `SameSite=Lax`); HTTP Basic Auth remains as a fallback for scripts and WebSocket clients.
-- **Settings page** — DSH settings → "LAN Proxy": shows the running port and forward target, and edits the forward target port, username, and password; saving persists the patch to `$DSH_HOME/dsh-lan-proxy.json` and immediately restarts the forwarding service.
+- **Password login (off by default)** — username and password default to empty, so the LAN surface is open until configured; enabling requires setting **both** in the settings page, after which external clients face the browser's native **Basic Auth** dialog with the login page as a fallback (HMAC-signed, expiring session cookie, `HttpOnly`, `SameSite=Lax`); scripts use the Basic Auth header.
+- **Settings page** — DSH settings → "LAN Proxy": shows the running ports, whether password login is enabled, and edits the forward target port, username, and password; saving persists the patch to `$DSH_HOME/dsh-lan-proxy.json` and immediately restarts the forwarding service.
 - **Out-of-the-box compatibility fixes** — `Host`/`Origin` rewriting (passes the DSH `/api` same-origin trust fence from the LAN) and a `crypto.randomUUID` polyfill injected into proxied HTML (non-secure LAN contexts lack it, which would break every RPC).
 - **Lives inside `dsh web`** — no separate process; configured through the profile's `cordis.patch.yml`.
 
@@ -32,12 +32,12 @@ All knobs have schema defaults; override them in the **profile's `cordis.patch.y
     listenPort: 3081            # proxy port (default 3081)
     upstreamHost: '127.0.0.1'   # upstream DSH host
     upstreamPort: 0             # 0 = follow the web app's actual bound port
-    username: admin             # login username
-    password: admin             # login password
+    username: ''                # login username (default empty = password login off)
+    password: ''                # login password (default empty = password login off)
     sessionTtlHours: 12         # session cookie lifetime (hours)
 ```
 
-- Setting **both** `username` and `password` empty disables auth entirely (open LAN access — not recommended).
+- Default `username` and `password` are both empty = **password login off** (open LAN access — not recommended). Password login turns on **only when both are set**; setting just one keeps it off (the settings page warns).
 - The session secret is generated per process: **restarting `dsh web` invalidates all sessions**, so users simply log in again.
 
 ## Settings page (port / credentials)
@@ -75,5 +75,6 @@ pnpm run smoke   # full live smoke test against a running DSH on 127.0.0.1:3080
 
 ## Security notes
 
-- Once authenticated, DSH's `/api` trust fence sees the rewritten loopback `Host`, so **privileged RPCs (settings/credentials) are reachable from the LAN** — the login/Basic gate is the only barrier. Use a strong password and keep auth enabled.
+- **The LAN surface is OPEN by default** (empty username/password). Set **both** credentials in the settings page as soon as possible.
+- Once password login is enabled, DSH's `/api` trust fence sees the rewritten loopback `Host`, so **privileged RPCs (settings/credentials) are reachable from the LAN** — the Basic/login gate is the only barrier.
 - Sessions rotate on server restart by design, keeping leaked cookies short-lived.

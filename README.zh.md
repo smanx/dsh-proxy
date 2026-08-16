@@ -3,8 +3,8 @@
 DSH 插件：把 DeepSeek Harness Web 界面（默认 `127.0.0.1:3080`）转发到**另一个带认证的端口**，让同一局域网内的其他设备也能安全访问。
 
 - **HTTP + WebSocket 全协议转发**：任务状态、日志等实时推送不失效
-- **Web-based 认证**：自带登录页（用户名/密码 → 签名会话 Cookie，HMAC-SHA256、HttpOnly、SameSite=Lax、可设有效期）；脚本/工具可用 **Basic Auth** 兜底
-- **设置页面**：DSH 设置 → 「局域网代理」，显示当前监听端口/转发目标，可修改转发目标端口、用户名、密码，保存后自动重启转发服务（持久化到 `$DSH_HOME/dsh-lan-proxy.json`）
+- **密码登录（默认关闭）**：默认用户名与密码均为空，局域网**开放访问**；在设置页**同时设置**用户名和密码后启用——外部访问弹出浏览器 **Basic Auth** 登录框，登录页作为兜底（签名会话 Cookie，HMAC-SHA256、HttpOnly、SameSite=Lax、可设有效期），脚本/工具可用 Basic Auth 头
+- **设置页面**：DSH 设置 → 「局域网代理」，显示当前监听端口/转发目标/**密码登录是否启用**，可修改转发目标端口、用户名、密码，保存后自动重启转发服务（持久化到 `$DSH_HOME/dsh-lan-proxy.json`）
 - **开箱即通的兼容修复**：`Host`/`Origin` 改写（通过 DSH `/api` 同源信任篱笆，LAN 访问不 403）、`crypto.randomUUID` polyfill 注入（LAN 非安全上下文下前端 RPC 可用）
 - **随 `dsh web` 启停**：无需单独进程，配置改在 profile 的 `cordis.patch.yml`
 
@@ -32,12 +32,12 @@ dsh plugin --profile web add file:C:/mydata/codes/dsh-lan-proxy
     listenPort: 3081            # 代理对外端口（默认 3081）
     upstreamHost: '127.0.0.1'   # 上游 DSH 地址
     upstreamPort: 0             # 0 = 跟随 web app 实际绑定的端口（默认）
-    username: admin             # 登录用户名
-    password: admin             # 登录密码
+    username: ''                # 登录用户名（默认空 = 密码登录关闭）
+    password: ''                # 登录密码（默认空 = 密码登录关闭）
     sessionTtlHours: 12         # 会话 Cookie 有效期（小时）
 ```
 
-- `username` 与 `password` **同时为空** = 关闭认证（局域网裸奔，谨慎）。
+- 默认 `username` 与 `password` 均为空 = **密码登录关闭**（局域网开放访问，谨慎）。**只有同时设置两者**才会启用密码登录（只设置其一仍保持关闭，设置页会提示）。
 - 会话密钥在进程启动时随机生成：**重启 `dsh web` 后所有已登录会话失效**，需重新登录。
 
 ## 设置页面（改端口 / 账号密码）
@@ -77,12 +77,15 @@ pnpm run smoke   # 对正在运行的 DSH（127.0.0.1:3080）做全流程冒烟�
 
 ## 认证细节
 
-- 登录页：`GET /login`、`POST /login`（urlencoded）、`GET /logout`；未认证的页面导航 → 302 到 `/login`；未认证的 `/api/*` → 401 JSON。
+- **启用条件**：`username` 与 `password` **同时非空**才启用密码登录（默认均为空 = 开放访问）；只设置其一仍保持关闭。
+- **外部挑战**：启用后，未认证的页面导航 → **401 + `WWW-Authenticate: Basic`**（浏览器弹出 Basic Auth 登录框），响应体即登录页（也可直接访问 `/login` 走 Cookie 登录）；未认证的 `/api/*` → 401 JSON + Basic 挑战。
+- 登录页：`GET /login`、`POST /login`（urlencoded）、`GET /logout`；成功登录签发会话 Cookie。
 - 会话 Cookie：`dsh_lan_session=<base64url(payload)>.<base64url(hmac-sha256)>`，`payload = <过期秒数>.<用户名>`；比较用常量时间。
-- Basic Auth 兜底：HTTP 与 WebSocket 握手统一校验（浏览器握手自动带 Cookie，因此浏览器走 Cookie；curl/脚本走 Basic）。
+- Basic Auth 与 Cookie 均可通过 HTTP 与 WebSocket 握手校验（浏览器走 Cookie 或弹窗，curl/脚本走 Basic 头）。
 - 登录表单体上限 16 KiB；Cookie `HttpOnly`（脚本不可读）、`SameSite=Lax`（跨站 POST 不带 Cookie）。
 
 ## 安全提示
 
-- 该代理通过后，DSH 的 `/api` 信任篱笆看到的是改写后的 loopback `Host`，因此**设置/凭据等特权 RPC 也会对局域网开放**——认证（登录页/Basic）是唯一闸门。请务必设置强密码，不要双空关闭认证。
+- 默认**开放访问**（用户名密码为空）——启用密码登录前，局域网内任何人都可访问。请尽快在设置页**同时设置用户名和密码**。
+- 该代理通过后，DSH 的 `/api` 信任篱笆看到的是改写后的 loopback `Host`，因此**设置/凭据等特权 RPC 也会对局域网开放**——密码登录（Basic/登录页）是唯一闸门。
 - 会话在服务重启后全部失效，属有意设计（泄漏的 Cookie 寿命有限）。
