@@ -5,12 +5,13 @@
 HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `127.0.0.1:3080`。
 支持 Basic Auth、局域网访问、`crypto.randomUUID` polyfill 注入。
 
-项目包含**两个等价的实现版本**，功能完全一致（交互式启动、配置记忆、CLI 免交互参数）：
+项目包含**三种形态**：两个独立的可执行版本（功能完全一致：交互式启动、配置记忆、CLI 免交互参数），以及一个 **DSH 插件版**（集成进 `dsh web`，随 DSH 启停，带设置页面）：
 
-| 目录 | 语言 | 单文件体积 | 说明 |
-|---|---|---|---|
-| [`node/`](node/) | Node.js（SEA 打包） | 83-119 MB | 原版；用 Node 官方 SEA 打包，无需安装 Node |
-| [`go/`](go/) | Go（静态编译） | 6-7 MB | 轻量版；Go 标准库实现，体积小 95%，推荐 |
+| 目录 | 形态 | 说明 |
+|---|---|---|
+| [`go/`](go/) | Go 静态编译单文件（6-7 MB） | 轻量版；Go 标准库实现，体积小 95%，推荐 |
+| [`node/`](node/) | Node.js SEA 打包单文件（83-119 MB） | 原版；用 Node 官方 SEA 打包，无需安装 Node |
+| [`dsh-lan-proxy/`](dsh-lan-proxy/) | **DSH 插件** | 集成进 DSH：随 `dsh web` 启停、设置页改端口/凭据/启停、原生 Basic Auth、配置持久化到 `$DSH_HOME/dsh-lan-proxy.json` |
 
 ## 功能
 
@@ -47,6 +48,20 @@ macOS/Linux 版传到对应系统后先 `chmod +x`。
 
 启动横幅显示的版本号在打包时注入：CI 自动取标签版本（如 `v1.1.0`）；
 本地构建可用 `-Version`（Go）或 `--version`（Node）指定，缺省取最近 git 标签。
+
+## DSH 插件版（dsh-lan-proxy/）
+
+面向已在使用 DSH（DeepSeek Harness）的用户：把代理作为插件装进 web profile，**随 `dsh web` 启停**，无需单独进程，也不用下载可执行文件。
+
+- 与独立版相同的原生 **Basic Auth**（浏览器弹窗）与 HTTP + WebSocket 全协议转发
+- **设置页面**（DSH 设置 → 局域网代理）：状态红绿灯、启动/停止、改转发目标端口与用户名密码（表单回写当前值，留空即设为空）
+- 默认空凭据 = 密码登录关闭；**同时设置**用户名和密码才启用
+
+```bash
+dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy
+```
+
+重启 `dsh web` 后，访问 `http://<局域网IP>:3081` 即弹 Basic Auth 登录框。详细说明见 [`dsh-lan-proxy/README.zh.md`](dsh-lan-proxy/README.zh.md)。
 
 ## 自动发布
 
