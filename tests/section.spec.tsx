@@ -67,6 +67,12 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+/** Submit the section form (jsdom's submit-button click does not fire the form's submit event). */
+function submitForm(container: HTMLElement): void {
+  const form = container.querySelector('form') as HTMLFormElement
+  form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+}
+
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
 
 let mounted: { root: Root; container: HTMLDivElement } | null = null
@@ -101,6 +107,33 @@ describe('status card', () => {
     await flush()
     expect(mounted.container.textContent ?? '').toContain('无法连接代理服务')
   })
+
+  it('shows a loading hint instead of the failure banner while the status RPC is in flight', async () => {
+    const { rpc } = makeRpc()
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    const text = mounted.container.textContent ?? ''
+    expect(text).toContain('加载中')
+    expect(text).not.toContain('无法连接代理服务')
+    await flush()
+    expect(mounted.container.textContent ?? '').toContain('3081')
+  })
+
+  it('recovers via the retry button after a transient failure', async () => {
+    let failFirst = true
+    const { rpc } = makeRpc({
+      status: () => (failFirst ? Promise.reject(new Error('transient')) : Promise.resolve({ ok: true, value: STATUS })),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+    expect(mounted.container.textContent ?? '').toContain('无法连接代理服务')
+    failFirst = false
+    const retry = Array.from(mounted.container.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('重试')) as HTMLButtonElement
+    retry.click()
+    await flush()
+    expect(mounted.container.textContent ?? '').toContain('3081')
+    expect(mounted.container.textContent ?? '').not.toContain('无法连接代理服务')
+  })
 })
 
 describe('update form', () => {
@@ -117,8 +150,7 @@ describe('update form', () => {
     setInputValue(inputs[1], 'alice')
     setInputValue(inputs[2], 's3cret')
     flushSync(() => {})
-    const submit = mounted.container.querySelector('button[type="submit"]') as HTMLButtonElement
-    submit.click()
+    submitForm(mounted.container)
     await flush()
 
     const updateCall = calls.find((call) => call.endpoint === RPC_UPDATE_ENDPOINT)
@@ -135,12 +167,30 @@ describe('update form', () => {
     const inputs = mounted.container.querySelectorAll('input')
     setInputValue(inputs[0], '99999')
     flushSync(() => {})
-    const submit = mounted.container.querySelector('button[type="submit"]') as HTMLButtonElement
-    submit.click()
+    submitForm(mounted.container)
     await flush()
 
     expect(mounted.container.textContent ?? '').toContain('端口必须是 1–65535 的整数')
     expect(calls.some((call) => call.endpoint === RPC_UPDATE_ENDPOINT)).toBe(false)
+  })
+
+  it('toggles password visibility with the eye button', async () => {
+    const { rpc } = makeRpc()
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+
+    const inputs = mounted.container.querySelectorAll('input')
+    const password = inputs[2]
+    expect(password.type).toBe('password')
+
+    const eye = mounted.container.querySelector('.dsh_lanproxy_eye') as HTMLButtonElement
+    eye.click()
+    flushSync(() => {})
+    expect(password.type).toBe('text')
+
+    eye.click()
+    flushSync(() => {})
+    expect(password.type).toBe('password')
   })
 
   it('surfaces a host-side rejection message', async () => {
@@ -153,8 +203,7 @@ describe('update form', () => {
     const inputs = mounted.container.querySelectorAll('input')
     setInputValue(inputs[0], '3081')
     flushSync(() => {})
-    const submit = mounted.container.querySelector('button[type="submit"]') as HTMLButtonElement
-    submit.click()
+    submitForm(mounted.container)
     await flush()
 
     expect(mounted.container.textContent ?? '').toContain('不能与监听端口相同')
