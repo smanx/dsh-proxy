@@ -101,7 +101,7 @@ export function apply(ctx: Context, config?: Config): void {
         RPC_CHANNEL,
         async (endpoint, payload) => {
           if (endpoint === RPC_STATUS_ENDPOINT) {
-            return { ok: true, value: controller.status() }
+            return { ok: true, value: await controller.refreshStatus() }
           }
           if (endpoint === RPC_UPDATE_ENDPOINT) {
             const outcome = await controller.update(payload)

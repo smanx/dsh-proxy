@@ -28,6 +28,7 @@ export declare class ProxyController {
     private readonly opts;
     private handle;
     private boundPort;
+    private probeCache;
     private readonly settings;
     private readonly log;
     private options;
@@ -44,8 +45,22 @@ export declare class ProxyController {
     stop(): Promise<void>;
     /** Stop and start again with the current effective options (the "restart the forwarding service" verb). */
     restart(): Promise<void>;
-    /** Current read-only status for the settings page. */
+    /**
+     * Current read-only status for the settings page. `upstreamReachable`
+     * reflects the most recent probe (false until the first probe runs).
+     */
     status(): LanProxyStatus;
+    /**
+     * Status with a fresh upstream reachability probe (cached for a few
+     * seconds so repeated settings-page loads do not hammer the target).
+     */
+    refreshStatus(): Promise<LanProxyStatus>;
+    /**
+     * Probe whether the target upstream service answers HTTP. Any response —
+     * even an error status — counts as reachable; only connection failures and
+     * timeouts turn the light red.
+     */
+    private probeUpstream;
     /**
      * Apply an update payload: validate, persist, then restart the forwarding
      * service with the new effective options.

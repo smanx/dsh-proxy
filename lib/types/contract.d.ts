@@ -14,12 +14,16 @@ export declare const RPC_UPDATE_ENDPOINT = "update";
 export interface LanProxyStatus {
     /** Interface the proxy binds (0.0.0.0 = LAN reachable). */
     listenHost: string;
-    /** Port the proxy currently listens on (the OS-assigned value when 0 was configured). */
+    /** Port the proxy listens on (the OS-assigned value when 0 was configured). */
     listenPort: number;
+    /** Whether the proxy is actually bound (false = bind failed, e.g. port busy). */
+    proxyListening: boolean;
     /** Upstream DSH host. */
     upstreamHost: string;
     /** Upstream DSH port the proxy forwards to. */
     upstreamPort: number;
+    /** Whether the target upstream service answers a probe. */
+    upstreamReachable: boolean;
     /** Login username currently enforced. */
     username: string;
     /** Whether the auth gate is on (both credentials non-empty). */

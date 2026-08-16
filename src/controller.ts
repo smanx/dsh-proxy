@@ -34,9 +34,15 @@ export type UpdateOutcome =
   | { ok: true; result: LanProxyUpdateResult }
   | { ok: false; message: string }
 
+/** Upstream reachability probe: connection timeout. */
+const PROBE_TIMEOUT_MS = 1500
+/** Upstream reachability probe: result cache lifetime. */
+const PROBE_CACHE_MS = 3000
+
 export class ProxyController {
   private handle: LanProxyHandle | null = null
   private boundPort: number | null = null
+  private probeCache: { at: number; reachable: boolean } | null = null
   private readonly settings: RuntimeSettingsFile
   private readonly log: ProxyControllerOptions['log']
   private options: EffectiveProxyOptions
@@ -109,18 +115,61 @@ export class ProxyController {
     await this.start()
   }
 
-  /** Current read-only status for the settings page. */
+  /**
+   * Current read-only status for the settings page. `upstreamReachable`
+   * reflects the most recent probe (false until the first probe runs).
+   */
   status(): LanProxyStatus {
     return {
       listenHost: this.options.listenHost,
       listenPort: this.boundPort ?? this.options.listenPort,
+      proxyListening: this.boundPort !== null,
       upstreamHost: this.options.upstreamHost,
       upstreamPort: this.options.upstreamPort,
+      upstreamReachable: this.probeCache?.reachable ?? false,
       username: this.options.username,
       authEnabled: this.options.username !== '' || this.options.password !== '',
       sessionTtlHours: Math.round(this.options.sessionTtlSeconds / 3600),
       persisted: this.persisted(),
     }
+  }
+
+  /**
+   * Status with a fresh upstream reachability probe (cached for a few
+   * seconds so repeated settings-page loads do not hammer the target).
+   */
+  async refreshStatus(): Promise<LanProxyStatus> {
+    await this.probeUpstream()
+    return this.status()
+  }
+
+  /**
+   * Probe whether the target upstream service answers HTTP. Any response —
+   * even an error status — counts as reachable; only connection failures and
+   * timeouts turn the light red.
+   */
+  private async probeUpstream(): Promise<boolean> {
+    const now = Date.now()
+    if (this.probeCache !== null && now - this.probeCache.at < PROBE_CACHE_MS) {
+      return this.probeCache.reachable
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
+    let reachable = false
+    try {
+      const res = await fetch(
+        `http://${this.options.upstreamHost}:${this.options.upstreamPort}/favicon.svg`,
+        { signal: controller.signal, redirect: 'manual' },
+      )
+      reachable = true
+      await res.body?.cancel().catch(() => {})
+    } catch {
+      reachable = false
+    } finally {
+      clearTimeout(timer)
+    }
+    this.probeCache = { at: now, reachable }
+    return reachable
   }
 
   /**
@@ -144,11 +193,12 @@ export class ProxyController {
     if (patch.password !== undefined) this.options.password = patch.password
 
     await this.restart()
+    this.probeCache = null
     this.log('info', 'dsh-lan-proxy: settings updated via the settings page; forwarding service restarted')
     return {
       ok: true,
       result: {
-        status: this.status(),
+        status: await this.refreshStatus(),
         message: '已保存并重启转发服务',
       },
     }
