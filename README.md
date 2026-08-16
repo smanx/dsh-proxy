@@ -44,7 +44,7 @@ All knobs have schema defaults; override them in the **profile's `cordis.patch.y
 
 After restarting `dsh web`, open DSH settings (gear icon) → "LAN Proxy":
 
-- **Status**: listen address, running port, forward target, auth state, session lifetime — plus whether a saved runtime config is in effect.
+- **Status**: two red/green running lights — the **proxy port** (listen address:port; green = the proxy is actually bound, red = bind failed e.g. port busy) and the **target service port** (DSH service port; green = the target answers a probe, red = unreachable) — plus the current username, auth state, session lifetime, and whether a saved runtime config is in effect.
 - **Edit settings**: change the **forward target port** (DSH service port), **username**, and **password** (leave empty to keep current). "Save & restart" writes `$DSH_HOME/dsh-lan-proxy.json` and **immediately restarts the forwarding service**; all active sessions are invalidated.
 
 Settings-page changes persist and take precedence over the profile's `cordis.patch.yml`; `listenHost` / `listenPort` remain cordis-only. The page talks to the host through the `/dsh-lan-proxy` Connection RPC channel (`status` / `update`), scoped to loopback authority (still reachable from the LAN via the proxy's Host rewrite).
