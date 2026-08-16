@@ -36,7 +36,6 @@ function baseOptions(upstreamPort: number): EffectiveProxyOptions {
     upstreamPort,
     username: 'admin',
     password: 'admin',
-    sessionTtlSeconds: 3600,
   }
 }
 
@@ -79,7 +78,6 @@ describe('ProxyController status', () => {
     expect(status.upstreamPort).toBe(upstreamPort)
     expect(status.username).toBe('admin')
     expect(status.authEnabled).toBe(true)
-    expect(status.sessionTtlHours).toBe(1)
     expect(status.persisted).toBe(false)
     expect(JSON.stringify(status)).not.toContain('password')
     expect(logs.some((line) => line.includes('listening'))).toBe(true)

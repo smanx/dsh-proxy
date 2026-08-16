@@ -10,6 +10,9 @@ const PASS = 's3cret'
 const UPSTREAM_HTML =
   '<!doctype html><html><head><title>up</title></head><body>UPSTREAM_MARKER</body></html>'
 
+const basic = (username = USER, password = PASS): string =>
+  `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
+
 interface World {
   upstreamPort: number
   proxy: LanProxyHandle
@@ -66,7 +69,6 @@ beforeEach(async () => {
     upstreamPort,
     username: USER,
     password: PASS,
-    sessionTtlSeconds: 3600,
   })
   const proxyPort = await proxy.ready
   world = { upstreamPort, proxy, proxyPort, targetOrigin: `http://127.0.0.1:${upstreamPort}`, seen }
@@ -86,93 +88,41 @@ afterEach(async () => {
 
 const base = (): string => `http://127.0.0.1:${world.proxyPort}`
 
-const loginCookie = async (): Promise<string> => {
-  const res = await fetch(`${base()}/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: `username=${USER}&password=${PASS}`,
-    redirect: 'manual',
-  })
-  expect(res.status).toBe(302)
-  const setCookie = res.headers.get('set-cookie') ?? ''
-  const cookie = setCookie.split(';')[0]
-  expect(cookie).toMatch(/^dsh_lan_session=/)
-  return cookie
-}
+describe('auth gate (native Basic Auth)', () => {
+  it('challenges every unauthenticated request with Basic auth', async () => {
+    const nav = await fetch(`${base()}/`, { redirect: 'manual', headers: { accept: 'text/html' } })
+    expect(nav.status).toBe(401)
+    expect(nav.headers.get('www-authenticate')).toMatch(/^Basic realm=/)
 
-describe('auth gate', () => {
-  it('redirects anonymous HTML navigations to the login page', async () => {
-    const res = await fetch(`${base()}/`, { redirect: 'manual', headers: { accept: 'text/html' } })
-    expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('/login')
+    const api = await fetch(`${base()}/api/state`, { redirect: 'manual' })
+    expect(api.status).toBe(401)
+    expect(api.headers.get('www-authenticate')).toMatch(/^Basic realm=/)
   })
 
-  it('answers anonymous /api requests with 401 JSON and a Basic challenge', async () => {
-    const res = await fetch(`${base()}/api/state`, { redirect: 'manual' })
-    expect(res.status).toBe(401)
-    expect(res.headers.get('www-authenticate')).toMatch(/^Basic realm=/)
-    expect(await res.json()).toEqual({ error: 'unauthorized' })
-  })
-
-  it('serves the login page', async () => {
-    const res = await fetch(`${base()}/login`)
+  it('accepts a valid Basic Authorization header and serves the app', async () => {
+    const res = await fetch(`${base()}/`, { headers: { authorization: basic() } })
     expect(res.status).toBe(200)
-    expect(await res.text()).toContain('name="username"')
-  })
-
-  it('rejects a wrong password and never sets a session', async () => {
-    const res = await fetch(`${base()}/login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: 'username=admin&password=wrong',
-      redirect: 'manual',
-    })
-    expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('/login?error=1')
-    expect(res.headers.get('set-cookie')).toBeNull()
-  })
-
-  it('logs in, serves the app with a session cookie, and logs out', async () => {
-    const cookie = await loginCookie()
-
-    const app = await fetch(`${base()}/`, { headers: { cookie } })
-    expect(app.status).toBe(200)
-    const html = await app.text()
+    const html = await res.text()
     expect(html).toContain('UPSTREAM_MARKER')
     expect(html).toContain(RANDOM_UUID_POLYFILL)
     expect(html.indexOf(RANDOM_UUID_POLYFILL)).toBeLessThan(html.indexOf('<title'))
-
-    const state = await fetch(`${base()}/api/state`, { headers: { cookie } })
-    expect(state.status).toBe(200)
-    expect(await state.json()).toEqual({ ok: true })
-
-    const logout = await fetch(`${base()}/logout`, { headers: { cookie }, redirect: 'manual' })
-    expect(logout.status).toBe(302)
-    expect(logout.headers.get('set-cookie')).toContain('Max-Age=0')
-
-    // The browser drops the cookie (Max-Age=0); a follow-up navigation
-    // carries no session and is redirected to the login page again. The
-    // stateless token itself stays valid until expiry — logout is client-side
-    // by design.
-    const after = await fetch(`${base()}/`, { headers: { accept: 'text/html' }, redirect: 'manual' })
-    expect(after.status).toBe(302)
-    expect(after.headers.get('location')).toBe('/login')
   })
 
-  it('accepts Basic Auth as a fallback', async () => {
-    const authorization = `Basic ${Buffer.from(`${USER}:${PASS}`).toString('base64')}`
-    const res = await fetch(`${base()}/`, { headers: { authorization } })
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('UPSTREAM_MARKER')
+  it('rejects a wrong Basic header', async () => {
+    const res = await fetch(`${base()}/`, {
+      headers: { authorization: basic('admin', 'wrong'), accept: 'text/html' },
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(401)
+    expect(res.headers.get('www-authenticate')).toMatch(/^Basic realm=/)
   })
 })
 
 describe('upstream header alignment', () => {
   it('rewrites Host and aligns Origin to the upstream loopback authority', async () => {
-    const cookie = await loginCookie()
     // Simulate a LAN browser: the page origin differs from the upstream.
     const res = await fetch(`${base()}/api/state`, {
-      headers: { cookie, origin: 'http://192.168.1.50:3081' },
+      headers: { authorization: basic(), origin: 'http://192.168.1.50:3081' },
     })
     expect(res.status).toBe(200)
     expect(world.seen.host).toBe(`127.0.0.1:${world.upstreamPort}`)
@@ -180,17 +130,15 @@ describe('upstream header alignment', () => {
   })
 
   it('passes requests without an Origin header (non-browser clients)', async () => {
-    const authorization = `Basic ${Buffer.from(`${USER}:${PASS}`).toString('base64')}`
-    const res = await fetch(`${base()}/api/state`, { headers: { authorization } })
+    const res = await fetch(`${base()}/api/state`, { headers: { authorization: basic() } })
     expect(res.status).toBe(200)
     expect(world.seen.host).toBe(`127.0.0.1:${world.upstreamPort}`)
   })
 
   it('forwards POST bodies unchanged', async () => {
-    const cookie = await loginCookie()
     const res = await fetch(`${base()}/api/echo`, {
       method: 'POST',
-      headers: { cookie, 'content-type': 'application/json' },
+      headers: { authorization: basic(), 'content-type': 'application/json' },
       body: JSON.stringify({ n: 42 }),
     })
     expect(res.status).toBe(200)
@@ -209,8 +157,7 @@ describe('content handling', () => {
   })
 
   it('does not inject the polyfill into non-HTML responses', async () => {
-    const cookie = await loginCookie()
-    const res = await fetch(`${base()}/favicon.svg`, { headers: { cookie } })
+    const res = await fetch(`${base()}/favicon.svg`, { headers: { authorization: basic() } })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/svg+xml')
     expect(await res.text()).not.toContain('randomUUID')
@@ -218,10 +165,9 @@ describe('content handling', () => {
 })
 
 describe('websocket', () => {
-  it('opens a socket with a session cookie and echoes messages', async () => {
-    const cookie = await loginCookie()
+  it('opens a socket with a Basic Authorization header and echoes messages', async () => {
     const ws = new WebSocket(`ws://127.0.0.1:${world.proxyPort}/api/events.mux`, {
-      headers: { cookie, origin: 'http://192.168.1.50:3081' },
+      headers: { authorization: basic(), origin: 'http://192.168.1.50:3081' },
     })
     await new Promise<void>((resolve, reject) => {
       ws.once('open', resolve)
@@ -236,7 +182,7 @@ describe('websocket', () => {
     ws.close()
   })
 
-  it('rejects anonymous upgrades with 401', async () => {
+  it('rejects anonymous upgrades with 401 and a Basic challenge', async () => {
     const status = await new Promise<number>((resolve, reject) => {
       const ws = new WebSocket(`ws://127.0.0.1:${world.proxyPort}/api/events.mux`)
       ws.on('unexpected-response', (_req, res) => {

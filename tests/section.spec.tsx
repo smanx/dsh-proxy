@@ -34,7 +34,6 @@ const STATUS: LanProxyStatus = {
   upstreamReachable: true,
   username: 'admin',
   authEnabled: true,
-  sessionTtlHours: 12,
   persisted: false,
 }
 
