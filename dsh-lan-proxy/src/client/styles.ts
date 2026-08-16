@@ -104,12 +104,12 @@ export const cssText = `
   flex: none;
 }
 .dsh_lanproxy_dotOn {
-  background: var(--dsw-alias-fg-positive, #3fb950);
-  box-shadow: 0 0 0 3px var(--dsw-alias-bg-positive, rgba(35, 134, 54, 0.25));
+  background: var(--dsw-alias-state-success-primary, #3fb950);
+  box-shadow: 0 0 0 3px var(--dsw-alias-state-success-secondary, rgba(35, 134, 54, 0.25));
 }
 .dsh_lanproxy_dotOff {
-  background: var(--dsw-alias-fg-danger, #f85149);
-  box-shadow: 0 0 0 3px var(--dsw-alias-bg-danger, rgba(248, 81, 73, 0.15));
+  background: var(--dsw-alias-state-error-primary, #f85149);
+  box-shadow: 0 0 0 3px var(--dsw-alias-state-error-secondary, rgba(248, 81, 73, 0.15));
 }
 .dsh_lanproxy_portValue {
   color: var(--dsw-alias-label-primary, #e6edf3);
@@ -120,10 +120,10 @@ export const cssText = `
   line-height: 18px;
 }
 .dsh_lanproxy_statusTextOn {
-  color: var(--dsw-alias-fg-positive, #3fb950);
+  color: var(--dsw-alias-state-success-primary, #3fb950);
 }
 .dsh_lanproxy_statusTextOff {
-  color: var(--dsw-alias-fg-danger, #f85149);
+  color: var(--dsw-alias-state-error-primary, #f85149);
 }
 .dsh_lanproxy_badge {
   padding: 2px 8px;
@@ -132,12 +132,12 @@ export const cssText = `
   line-height: 18px;
 }
 .dsh_lanproxy_badgeOn {
-  color: var(--dsw-alias-fg-positive, #3fb950);
-  background: var(--dsw-alias-bg-positive, rgba(35, 134, 54, 0.25));
+  color: var(--dsw-alias-state-success-primary, #3fb950);
+  background: var(--dsw-alias-state-success-secondary, rgba(35, 134, 54, 0.25));
 }
 .dsh_lanproxy_badgeOff {
-  color: var(--dsw-alias-fg-danger, #f85149);
-  background: var(--dsw-alias-bg-danger, rgba(248, 81, 73, 0.15));
+  color: var(--dsw-alias-state-error-primary, #f85149);
+  background: var(--dsw-alias-state-error-secondary, rgba(248, 81, 73, 0.15));
 }
 .dsh_lanproxy_form {
   display: flex;
@@ -166,7 +166,9 @@ export const cssText = `
   padding: 8px 10px;
   border: 1px solid var(--dsw-alias-border-l2, #30363d);
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-0, #0d1117);
+  /* bg-layer-0 does not exist in the design platform; bg-layer-2 is the
+     token the harness itself uses for inputs and raised surfaces. */
+  background: var(--dsw-alias-bg-layer-2, #21262d);
   color: var(--dsw-alias-label-primary, #e6edf3);
   font-size: 13px;
   line-height: 20px;
@@ -267,13 +269,13 @@ export const cssText = `
 }
 .dsh_lanproxy_message {
   margin: 0;
-  color: var(--dsw-alias-fg-positive, #3fb950);
+  color: var(--dsw-alias-state-success-primary, #3fb950);
   font-size: 13px;
   line-height: 20px;
 }
 .dsh_lanproxy_error {
   margin: 0;
-  color: var(--dsw-alias-fg-danger, #f85149);
+  color: var(--dsw-alias-state-error-primary, #f85149);
   font-size: 13px;
   line-height: 20px;
 }
