@@ -1,0 +1,42 @@
+{
+  "name": "dsh-lan-proxy",
+  "description": "DSH plugin: LAN reverse proxy with native Basic Auth and a settings page. Lives in this repo's dsh-lan-proxy/ subdirectory; this root package makes the plugin installable from the repository itself (git/github: specs install the root).",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "dsh-lan-proxy/lib/index.cjs",
+  "exports": {
+    ".": {
+      "types": "./dsh-lan-proxy/lib/types/index.d.ts",
+      "default": "./dsh-lan-proxy/lib/index.cjs"
+    },
+    "./client": {
+      "types": "./dsh-lan-proxy/lib/types/client/index.d.ts",
+      "default": "./dsh-lan-proxy/lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "dsh-lan-proxy/cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-connection"
+      ]
+    }
+  },
+  "files": [
+    "dsh-lan-proxy/lib",
+    "dsh-lan-proxy/cordis.patch.yml",
+    "dsh-lan-proxy/dsh.plugin.json",
+    "dsh-lan-proxy/README.md",
+    "dsh-lan-proxy/README.zh.md",
+    "dsh-lan-proxy/LICENSE"
+  ]
+}
