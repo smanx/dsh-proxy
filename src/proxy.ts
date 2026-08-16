@@ -58,6 +58,14 @@ const UNAUTHORIZED_JSON = '{"error":"unauthorized"}'
 /** Basic Auth realm presented to unauthenticated external clients. */
 const AUTH_REALM = 'dsh-lan-proxy'
 
+/**
+ * Static files browsers fetch OUTSIDE the authenticated document context
+ * (the PWA manifest and the favicon are requested without credentials), so
+ * gating them on the session cookie 401s them. They carry no secrets and the
+ * upstream serves them unauthenticated anyway.
+ */
+const PUBLIC_PATHS = new Set(['/manifest.webmanifest', '/favicon.svg'])
+
 /** LAN IPv4 addresses the host currently has, as http URLs on `port`. */
 export function lanAddresses(port: number): string[] {
   const ips: string[] = []
@@ -205,6 +213,13 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     }
     if (pathname === '/logout') {
       handleLogout(req, res)
+      return
+    }
+    // Public static files (PWA manifest, favicon): fetched without
+    // credentials by the browser, so they bypass the auth gate.
+    if (PUBLIC_PATHS.has(pathname)) {
+      alignOrigin(req)
+      proxy.web(req, res)
       return
     }
     if (!auth.isAuthenticated(req.headers.cookie, req.headers.authorization)) {
