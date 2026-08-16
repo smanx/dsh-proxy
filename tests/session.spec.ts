@@ -64,7 +64,11 @@ describe('SessionStore', () => {
     const store = new SessionStore(CONFIG)
     const token = store.issue('alice')
     const [payload, sig] = token.split('.')
-    const tampered = `${payload}.${sig.slice(0, -1)}${sig.endsWith('A') ? 'B' : 'A'}`
+    // Flip the FIRST character of the signature: every bit of it is
+    // significant. (Flipping the last base64url character can touch only
+    // padding bits, which decode to the same bytes — a latent flake.)
+    const tampered = `${payload}.${sig[0] === 'A' ? 'B' : 'A'}${sig.slice(1)}`
+    expect(tampered).not.toBe(token)
     expect(store.verify(tampered)).toEqual({ ok: false, reason: 'tampered' })
   })
 

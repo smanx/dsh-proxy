@@ -90,16 +90,15 @@ async function main() {
   const origin = `http://127.0.0.1:${port}`
 
   try {
-    // 1. anonymous navigation → Basic challenge (401 + login page body)
+    // 1. anonymous navigation → redirected to the login page
     let res = await fetch(`${base}/`, { redirect: 'manual', headers: { accept: 'text/html' } })
-    const anonBody = await res.text()
     check(
-      'anonymous / → 401 Basic challenge with the login page',
-      res.status === 401 && /^Basic realm=/.test(res.headers.get('www-authenticate') ?? '') && anonBody.includes('name="username"'),
-      `status=${res.status} www-auth=${res.headers.get('www-authenticate')}`,
+      'anonymous / redirects to /login',
+      res.status === 302 && res.headers.get('location') === '/login',
+      `status=${res.status} loc=${res.headers.get('location')}`,
     )
 
-    // 2. anonymous /api → 401 JSON
+    // 2. anonymous /api → 401 JSON with a Basic challenge (scripts)
     res = await fetch(`${base}/api/state`, { redirect: 'manual' })
     check('anonymous /api → 401 JSON', res.status === 401 && /^Basic realm=/.test(res.headers.get('www-authenticate') ?? ''), `status=${res.status}`)
 
