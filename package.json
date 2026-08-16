@@ -10,11 +10,25 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.cjs"
     },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
     "./package.json": "./package.json"
   },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-connection"
+      ]
     }
   },
   "files": [
@@ -42,12 +56,23 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis",
+    "@deepseek-ai/dsh-client-connection": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection",
+    "@deepseek-ai/dsh-client-locale": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-locale",
+    "@deepseek-ai/dsh-client-runtime": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-runtime",
+    "@deepseek-ai/dsh-client-ui-settings": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-ui-settings",
+    "@deepseek-ai/dsh-client-ui-slots": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-ui-slots",
+    "@deepseek-ai/dsh-home-paths": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-home-paths",
     "@deepseek-ai/dsh-host-webserver": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-webserver",
     "@deepseek-ai/schemastery": "file:C:/Users/cc/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/schemastery",
     "@types/http-proxy": "^1.17.15",
     "@types/node": "^24.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "esbuild": "^0.28.0",
     "http-proxy": "^1.18.1",
+    "jsdom": "29.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8",
     "ws": "^8.18.0"
