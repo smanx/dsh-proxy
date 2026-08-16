@@ -20,6 +20,11 @@ export declare const zh: {
     'status.loading': string;
     'status.unreachable': string;
     'status.retry': string;
+    'control.start': string;
+    'control.stop': string;
+    'control.started': string;
+    'control.stopped': string;
+    'control.failed': string;
     'form.title': string;
     'form.subtitle': string;
     'form.upstreamPort': string;

@@ -10,6 +10,10 @@ export declare const RPC_CHANNEL = "/dsh-lan-proxy";
 export declare const RPC_STATUS_ENDPOINT = "status";
 /** Endpoint: apply a settings patch and restart the forwarding service. */
 export declare const RPC_UPDATE_ENDPOINT = "update";
+/** Endpoint: start the forwarding service (idempotent). */
+export declare const RPC_START_ENDPOINT = "start";
+/** Endpoint: stop the forwarding service (the response is answered before the listener closes). */
+export declare const RPC_STOP_ENDPOINT = "stop";
 /** Read-only status the settings section shows. */
 export interface LanProxyStatus {
     /** Interface the proxy binds (0.0.0.0 = LAN reachable). */

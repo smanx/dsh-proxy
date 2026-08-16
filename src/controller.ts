@@ -118,6 +118,23 @@ export class ProxyController {
   }
 
   /**
+   * Stop the proxy AFTER the caller's response has flushed back. The stop RPC
+   * answer travels through the proxy itself when the settings page is reached
+   * via the LAN URL, so closing the listener before the response is written
+   * would drop it; the listener is torn down shortly afterwards instead.
+   * @param delayMs - grace before the listener closes (defaults to 300ms).
+   * @returns the status as it will be once stopped.
+   */
+  stopDeferred(delayMs = 300): LanProxyStatus {
+    const stopped: LanProxyStatus = { ...this.status(), proxyListening: false }
+    const timer = setTimeout(() => {
+      void this.stop()
+    }, delayMs)
+    timer.unref?.()
+    return stopped
+  }
+
+  /**
    * Current read-only status for the settings page. `upstreamReachable`
    * reflects the most recent probe (false until the first probe runs).
    */

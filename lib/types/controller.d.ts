@@ -46,6 +46,15 @@ export declare class ProxyController {
     /** Stop and start again with the current effective options (the "restart the forwarding service" verb). */
     restart(): Promise<void>;
     /**
+     * Stop the proxy AFTER the caller's response has flushed back. The stop RPC
+     * answer travels through the proxy itself when the settings page is reached
+     * via the LAN URL, so closing the listener before the response is written
+     * would drop it; the listener is torn down shortly afterwards instead.
+     * @param delayMs - grace before the listener closes (defaults to 300ms).
+     * @returns the status as it will be once stopped.
+     */
+    stopDeferred(delayMs?: number): LanProxyStatus;
+    /**
      * Current read-only status for the settings page. `upstreamReachable`
      * reflects the most recent probe (false until the first probe runs).
      */

@@ -16,7 +16,9 @@ import type { PropsLocale, PropsRuntime, InjectFace } from '@deepseek-ai/dsh-cli
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
 import {
   RPC_CHANNEL,
+  RPC_START_ENDPOINT,
   RPC_STATUS_ENDPOINT,
+  RPC_STOP_ENDPOINT,
   RPC_UPDATE_ENDPOINT,
   type LanProxyStatus,
   type LanProxyUpdatePayload,
@@ -90,8 +92,11 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
   const [status, setStatus] = useState<LanProxyStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [controlling, setControlling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [controlError, setControlError] = useState<string | null>(null)
+  const [controlMessage, setControlMessage] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [upstreamPort, setUpstreamPort] = useState('')
   const [username, setUsername] = useState('')
@@ -134,6 +139,31 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
     }, 2000)
     return () => window.clearTimeout(timer)
   }, [loadStatus])
+
+  /** Start or stop the forwarding service; the returned status re-renders the card. */
+  const runControl = useCallback(async (action: 'start' | 'stop'): Promise<void> => {
+    setControlling(true)
+    setControlError(null)
+    setControlMessage(null)
+    try {
+      const result = await rpc.call(
+        RPC_CHANNEL,
+        action === 'start' ? RPC_START_ENDPOINT : RPC_STOP_ENDPOINT,
+        {},
+      )
+      if (result.ok) {
+        setStatus(result.value as LanProxyStatus)
+        setControlMessage(action === 'start' ? t('control.started') : t('control.stopped'))
+      } else {
+        setControlError(result.error.message)
+      }
+    } catch (err) {
+      console.error(`[dsh-lan-proxy] ${action} RPC failed:`, err)
+      setControlError(`${t('control.failed')}：${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setControlling(false)
+    }
+  }, [rpc, t])
 
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
@@ -221,8 +251,32 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
       </div>
 
       <div className="dsh_lanproxy_card">
-        <div className="dsh_lanproxy_cardTitle">{t('status.title')}</div>
+        <div className="dsh_lanproxy_cardHeader">
+          <div className="dsh_lanproxy_cardTitle">{t('status.title')}</div>
+          {phase === 'ok' && status !== null ? (
+            <div className="dsh_lanproxy_controls">
+              <button
+                type="button"
+                className="dsh_lanproxy_button"
+                disabled={controlling || status.proxyListening}
+                onClick={() => { void runControl('start') }}
+              >
+                {t('control.start')}
+              </button>
+              <button
+                type="button"
+                className="dsh_lanproxy_button dsh_lanproxy_buttonStop"
+                disabled={controlling || !status.proxyListening}
+                onClick={() => { void runControl('stop') }}
+              >
+                {t('control.stop')}
+              </button>
+            </div>
+          ) : null}
+        </div>
         {statusCard}
+        {controlMessage !== null ? <p className="dsh_lanproxy_message">{controlMessage}</p> : null}
+        {controlError !== null ? <p className="dsh_lanproxy_error">{controlError}</p> : null}
       </div>
 
       <form className="dsh_lanproxy_card dsh_lanproxy_form" onSubmit={(event) => { void submit(event) }}>

@@ -11,6 +11,10 @@ export const RPC_CHANNEL = '/dsh-lan-proxy'
 export const RPC_STATUS_ENDPOINT = 'status'
 /** Endpoint: apply a settings patch and restart the forwarding service. */
 export const RPC_UPDATE_ENDPOINT = 'update'
+/** Endpoint: start the forwarding service (idempotent). */
+export const RPC_START_ENDPOINT = 'start'
+/** Endpoint: stop the forwarding service (the response is answered before the listener closes). */
+export const RPC_STOP_ENDPOINT = 'stop'
 
 /** Read-only status the settings section shows. */
 export interface LanProxyStatus {

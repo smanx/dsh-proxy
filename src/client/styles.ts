@@ -52,6 +52,26 @@ export const cssText = `
   line-height: 20px;
   font-weight: 600;
 }
+.dsh_lanproxy_cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.dsh_lanproxy_controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dsh_lanproxy_buttonStop {
+  background: transparent;
+  border: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+}
+.dsh_lanproxy_buttonStop:disabled {
+  opacity: 0.45;
+}
 .dsh_lanproxy_cardDesc {
   margin: -4px 0 0;
   color: var(--dsw-alias-label-tertiary);

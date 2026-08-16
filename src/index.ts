@@ -19,7 +19,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { ProxyController } from './controller.ts'
-import { RPC_CHANNEL, RPC_STATUS_ENDPOINT, RPC_UPDATE_ENDPOINT } from './contract.ts'
+import { RPC_CHANNEL, RPC_START_ENDPOINT, RPC_STATUS_ENDPOINT, RPC_STOP_ENDPOINT, RPC_UPDATE_ENDPOINT } from './contract.ts'
 
 // Standalone API for scripts and smoke tests, exercised through the same
 // bundled artifact the profile loads.
@@ -102,6 +102,15 @@ export function apply(ctx: Context, config?: Config): void {
         async (endpoint, payload) => {
           if (endpoint === RPC_STATUS_ENDPOINT) {
             return { ok: true, value: await controller.refreshStatus() }
+          }
+          if (endpoint === RPC_START_ENDPOINT) {
+            await controller.start()
+            return { ok: true, value: await controller.refreshStatus() }
+          }
+          if (endpoint === RPC_STOP_ENDPOINT) {
+            // Answered before the listener closes so the response survives
+            // when the caller is connected through the proxy.
+            return { ok: true, value: controller.stopDeferred() }
           }
           if (endpoint === RPC_UPDATE_ENDPOINT) {
             const outcome = await controller.update(payload)
