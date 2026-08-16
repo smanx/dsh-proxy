@@ -102,6 +102,12 @@ async function main() {
     res = await fetch(`${base}/api/state`, { redirect: 'manual' })
     check('anonymous /api → 401 JSON', res.status === 401 && /^Basic realm=/.test(res.headers.get('www-authenticate') ?? ''), `status=${res.status}`)
 
+    // 2b. public static files (PWA manifest, favicon) need no auth
+    res = await fetch(`${base}/manifest.webmanifest`, { redirect: 'manual' })
+    check('public manifest served without auth', res.status === 200, `status=${res.status}`)
+    res = await fetch(`${base}/favicon.svg`, { redirect: 'manual' })
+    check('public favicon served without auth', res.status === 200, `status=${res.status}`)
+
     // 3. login page served
     res = await fetch(`${base}/login`)
     const loginHtml = await res.text()

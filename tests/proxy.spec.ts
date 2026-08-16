@@ -201,6 +201,13 @@ describe('upstream header alignment', () => {
 })
 
 describe('content handling', () => {
+  it('serves public static files (manifest, favicon) without authentication', async () => {
+    const manifest = await fetch(`${base()}/manifest.webmanifest`, { redirect: 'manual' })
+    expect(manifest.status).toBe(200)
+    const favicon = await fetch(`${base()}/favicon.svg`, { redirect: 'manual' })
+    expect(favicon.status).toBe(200)
+  })
+
   it('does not inject the polyfill into non-HTML responses', async () => {
     const cookie = await loginCookie()
     const res = await fetch(`${base()}/favicon.svg`, { headers: { cookie } })
