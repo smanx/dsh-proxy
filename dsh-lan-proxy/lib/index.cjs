@@ -2396,6 +2396,9 @@ function normalizeRuntimeSettings(raw) {
   if (typeof raw !== "object" || raw === null) return {};
   const source = raw;
   const out = {};
+  if (typeof source.listenPort === "number" && Number.isInteger(source.listenPort)) {
+    out.listenPort = source.listenPort;
+  }
   if (typeof source.upstreamPort === "number" && Number.isInteger(source.upstreamPort)) {
     out.upstreamPort = source.upstreamPort;
   }
@@ -2430,19 +2433,29 @@ var RuntimeSettingsFile = class {
 };
 var MAX_USERNAME_LENGTH = 64;
 var MAX_PASSWORD_LENGTH = 128;
-function validateUpdate(payload, listenPort) {
+function validateUpdate(payload, currentListenPort, currentUpstreamPort) {
   if (typeof payload !== "object" || payload === null) {
     return { ok: false, message: "\u8BF7\u6C42\u4F53\u5FC5\u987B\u662F\u5BF9\u8C61" };
   }
   const input = payload;
   const patch = {};
+  if (input.listenPort !== void 0) {
+    const port = input.listenPort;
+    if (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535) {
+      return { ok: false, message: `\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\u65E0\u6548\uFF1A${String(port)}\uFF08\u9700\u8981 1\u201365535 \u7684\u6574\u6570\uFF09` };
+    }
+    if (port === currentUpstreamPort) {
+      return { ok: false, message: `\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\u4E0D\u80FD\u4E0E\u9ED8\u8BA4\u670D\u52A1\u7AEF\u53E3\u76F8\u540C\uFF08\u90FD\u662F ${port}\uFF09` };
+    }
+    patch.listenPort = port;
+  }
   if (input.upstreamPort !== void 0) {
     const port = input.upstreamPort;
     if (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535) {
       return { ok: false, message: `\u8F6C\u53D1\u76EE\u6807\u7AEF\u53E3\u65E0\u6548\uFF1A${String(port)}\uFF08\u9700\u8981 1\u201365535 \u7684\u6574\u6570\uFF09` };
     }
-    if (port === listenPort) {
-      return { ok: false, message: `\u8F6C\u53D1\u76EE\u6807\u7AEF\u53E3\u4E0D\u80FD\u4E0E\u76D1\u542C\u7AEF\u53E3\u76F8\u540C\uFF08\u90FD\u662F ${port}\uFF09` };
+    if (port === currentListenPort) {
+      return { ok: false, message: `\u8F6C\u53D1\u76EE\u6807\u7AEF\u53E3\u4E0D\u80FD\u4E0E\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\u76F8\u540C\uFF08\u90FD\u662F ${port}\uFF09` };
     }
     patch.upstreamPort = port;
   }
@@ -2460,7 +2473,7 @@ function validateUpdate(payload, listenPort) {
     }
     patch.password = input.password;
   }
-  if (patch.upstreamPort === void 0 && patch.username === void 0 && patch.password === void 0) {
+  if (patch.listenPort === void 0 && patch.upstreamPort === void 0 && patch.username === void 0 && patch.password === void 0) {
     return { ok: false, message: "\u6CA1\u6709\u53EF\u4FDD\u5B58\u7684\u4FEE\u6539" };
   }
   return {
@@ -2479,6 +2492,7 @@ var ProxyController = class {
     this.settings = new RuntimeSettingsFile(opts.settingsFile);
     this.options = { ...opts.base };
     const persisted = this.settings.read();
+    if (persisted.listenPort !== void 0) this.options.listenPort = persisted.listenPort;
     if (persisted.upstreamPort !== void 0) this.options.upstreamPort = persisted.upstreamPort;
     if (persisted.username !== void 0) this.options.username = persisted.username;
     if (persisted.password !== void 0) this.options.password = persisted.password;
@@ -2493,7 +2507,7 @@ var ProxyController = class {
   /** Whether a persisted runtime override exists (drives the status flag). */
   persisted() {
     const current = this.settings.read();
-    return current.upstreamPort !== void 0 || current.username !== void 0 || current.password !== void 0;
+    return current.listenPort !== void 0 || current.upstreamPort !== void 0 || current.username !== void 0 || current.password !== void 0;
   }
   /**
    * Start the proxy (idempotent). Listen errors — the port is already taken,
@@ -2623,11 +2637,16 @@ var ProxyController = class {
    * @returns the new status, or a user-facing rejection message.
    */
   async update(payload) {
-    const check = validateUpdate(payload, this.boundPort ?? this.options.listenPort);
+    const check = validateUpdate(
+      payload,
+      this.boundPort ?? this.options.listenPort,
+      this.options.upstreamPort
+    );
     if (!check.ok) return { ok: false, message: check.message };
     const patch = check.patch;
     const next = { ...this.settings.read(), ...patch };
     this.settings.write(next);
+    if (patch.listenPort !== void 0) this.options.listenPort = patch.listenPort;
     if (patch.upstreamPort !== void 0) this.options.upstreamPort = patch.upstreamPort;
     if (patch.username !== void 0) this.options.username = patch.username;
     if (patch.password !== void 0) this.options.password = patch.password;

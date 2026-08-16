@@ -77,7 +77,7 @@ function SettingsSection({ rpc, t }) {
   const [controlError, setControlError] = (0, import_react.useState)(null);
   const [controlMessage, setControlMessage] = (0, import_react.useState)(null);
   const [showPassword, setShowPassword] = (0, import_react.useState)(false);
-  const [upstreamPort, setUpstreamPort] = (0, import_react.useState)("");
+  const [listenPort, setListenPort] = (0, import_react.useState)("");
   const [username, setUsername] = (0, import_react.useState)("");
   const [password, setPassword] = (0, import_react.useState)("");
   const formSeededRef = (0, import_react.useRef)(false);
@@ -86,7 +86,7 @@ function SettingsSection({ rpc, t }) {
     setPhase(next);
   }, []);
   const applyStatusToForm = (0, import_react.useCallback)((next) => {
-    setUpstreamPort(String(next.upstreamPort));
+    setListenPort(String(next.listenPort));
     setUsername(next.username);
     setPassword(next.password ?? "");
   }, []);
@@ -149,17 +149,17 @@ function SettingsSection({ rpc, t }) {
     setError(null);
     setMessage(null);
     try {
-      const port = Number(upstreamPort.trim());
+      const port = Number(listenPort.trim());
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
         setError(t("form.invalidPort"));
         return;
       }
-      if (status !== null && port === status.listenPort) {
+      if (status !== null && port === status.upstreamPort) {
         setError(t("form.portConflict"));
         return;
       }
       const payload = {
-        upstreamPort: port,
+        listenPort: port,
         username: username.trim(),
         password
       };
@@ -250,20 +250,20 @@ function SettingsSection({ rpc, t }) {
     }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh_lanproxy_cardTitle", children: t("form.title") }) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh_lanproxy_field", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "dsh_lanproxy_fieldLabel", htmlFor: "dsh-lanproxy-upstream-port", children: t("form.upstreamPort") }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "dsh_lanproxy_fieldLabel", htmlFor: "dsh-lanproxy-listen-port", children: t("form.listenPort") }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "input",
           {
-            id: "dsh-lanproxy-upstream-port",
+            id: "dsh-lanproxy-listen-port",
             className: "dsh_lanproxy_input",
             type: "number",
             min: 1,
             max: 65535,
             inputMode: "numeric",
-            placeholder: t("form.upstreamPortHint"),
-            value: upstreamPort,
+            placeholder: t("form.listenPortHint"),
+            value: listenPort,
             onChange: (event) => {
-              setUpstreamPort(event.target.value);
+              setListenPort(event.target.value);
             }
           }
         )
@@ -334,7 +334,7 @@ var zh = {
   "status.proxyPort": "\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3",
   "status.proxyRunning": "\u8FD0\u884C\u4E2D",
   "status.proxyStopped": "\u672A\u8FD0\u884C",
-  "status.targetPort": "\u76EE\u6807\u670D\u52A1\u7AEF\u53E3",
+  "status.targetPort": "\u9ED8\u8BA4\u670D\u52A1\u7AEF\u53E3",
   "status.targetReachable": "\u53EF\u8BBF\u95EE",
   "status.targetUnreachable": "\u4E0D\u53EF\u8BBF\u95EE",
   "status.username": "\u5F53\u524D\u7528\u6237\u540D",
@@ -353,8 +353,8 @@ var zh = {
   "control.failed": "\u64CD\u4F5C\u5931\u8D25",
   "form.title": "\u4FEE\u6539\u8BBE\u7F6E",
   "form.subtitle": "\u542F\u7528\u5BC6\u7801\u767B\u5F55\u540E\uFF0C\u6D4F\u89C8\u5668\u4F1A\u5F39\u51FA\u539F\u751F Basic Auth \u767B\u5F55\u6846\uFF1B\u4FDD\u5B58\u4FEE\u6539\u4F1A\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\u3002",
-  "form.upstreamPort": "\u8F6C\u53D1\u76EE\u6807\u7AEF\u53E3\uFF08DSH \u670D\u52A1\u7AEF\u53E3\uFF09",
-  "form.upstreamPortHint": "1\u201365535",
+  "form.listenPort": "\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\uFF08\u76D1\u542C\u7AEF\u53E3\uFF09",
+  "form.listenPortHint": "1\u201365535",
   "form.username": "\u7528\u6237\u540D",
   "form.usernameHint": "\u6E05\u7A7A\u5373\u8BBE\u4E3A\u7A7A",
   "form.password": "\u5BC6\u7801",
@@ -364,7 +364,7 @@ var zh = {
   "form.save": "\u5E94\u7528",
   "form.saving": "\u5E94\u7528\u4E2D\u2026",
   "form.invalidPort": "\u7AEF\u53E3\u5FC5\u987B\u662F 1\u201365535 \u7684\u6574\u6570",
-  "form.portConflict": "\u8F6C\u53D1\u76EE\u6807\u7AEF\u53E3\u4E0D\u80FD\u4E0E\u76D1\u542C\u7AEF\u53E3\u76F8\u540C",
+  "form.portConflict": "\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\u4E0D\u80FD\u4E0E\u9ED8\u8BA4\u670D\u52A1\u7AEF\u53E3\u76F8\u540C",
   "form.updated": "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1",
   "form.failed": "\u4FDD\u5B58\u5931\u8D25"
 };
@@ -374,7 +374,7 @@ var en = {
   "status.proxyPort": "Proxy port",
   "status.proxyRunning": "Running",
   "status.proxyStopped": "Not running",
-  "status.targetPort": "Target service port",
+  "status.targetPort": "Default service port",
   "status.targetReachable": "Reachable",
   "status.targetUnreachable": "Unreachable",
   "status.username": "Username",
@@ -393,8 +393,8 @@ var en = {
   "control.failed": "Action failed",
   "form.title": "Edit settings",
   "form.subtitle": "With password login enabled, the browser shows its native Basic Auth dialog; saving restarts the forwarding service.",
-  "form.upstreamPort": "Forward target port (DSH service port)",
-  "form.upstreamPortHint": "1\u201365535",
+  "form.listenPort": "Proxy port (listen)",
+  "form.listenPortHint": "1\u201365535",
   "form.username": "Username",
   "form.usernameHint": "Empty to set blank",
   "form.password": "Password",
@@ -404,7 +404,7 @@ var en = {
   "form.save": "Apply",
   "form.saving": "Applying\u2026",
   "form.invalidPort": "Port must be an integer between 1 and 65535",
-  "form.portConflict": "Forward target port must differ from the listen port",
+  "form.portConflict": "Proxy port must differ from the default service port",
   "form.updated": "Saved and the forwarding service restarted",
   "form.failed": "Save failed"
 };

@@ -98,7 +98,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
   const [controlError, setControlError] = useState<string | null>(null)
   const [controlMessage, setControlMessage] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
-  const [upstreamPort, setUpstreamPort] = useState('')
+  const [listenPort, setListenPort] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   // Ref (not state): the form is seeded from the first successful status
@@ -112,7 +112,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
 
   /** Write the current values back into the form (empty means "set empty"). */
   const applyStatusToForm = useCallback((next: LanProxyStatus): void => {
-    setUpstreamPort(String(next.upstreamPort))
+    setListenPort(String(next.listenPort))
     setUsername(next.username)
     setPassword(next.password ?? '')
   }, [])
@@ -188,18 +188,20 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
     try {
       // The form is pre-filled with the current values and always submits the
       // FULL payload: clearing a field intentionally SETS it empty (both empty
-      // disables password login), it never means "keep unchanged".
-      const port = Number(upstreamPort.trim())
+      // disables password login), it never means "keep unchanged". The port
+      // field edits the PROXY's own listen port (like the standalone's target
+      // port); it must differ from the default service port.
+      const port = Number(listenPort.trim())
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
         setError(t('form.invalidPort'))
         return
       }
-      if (status !== null && port === status.listenPort) {
+      if (status !== null && port === status.upstreamPort) {
         setError(t('form.portConflict'))
         return
       }
       const payload: LanProxyUpdatePayload = {
-        upstreamPort: port,
+        listenPort: port,
         username: username.trim(),
         password,
       }
@@ -295,17 +297,17 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         </div>
 
         <div className="dsh_lanproxy_field">
-          <label className="dsh_lanproxy_fieldLabel" htmlFor="dsh-lanproxy-upstream-port">{t('form.upstreamPort')}</label>
+          <label className="dsh_lanproxy_fieldLabel" htmlFor="dsh-lanproxy-listen-port">{t('form.listenPort')}</label>
           <input
-            id="dsh-lanproxy-upstream-port"
+            id="dsh-lanproxy-listen-port"
             className="dsh_lanproxy_input"
             type="number"
             min={1}
             max={65535}
             inputMode="numeric"
-            placeholder={t('form.upstreamPortHint')}
-            value={upstreamPort}
-            onChange={(event) => { setUpstreamPort(event.target.value) }}
+            placeholder={t('form.listenPortHint')}
+            value={listenPort}
+            onChange={(event) => { setListenPort(event.target.value) }}
           />
         </div>
 

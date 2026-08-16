@@ -26,8 +26,8 @@ export declare const zh: {
     'control.failed': string;
     'form.title': string;
     'form.subtitle': string;
-    'form.upstreamPort': string;
-    'form.upstreamPortHint': string;
+    'form.listenPort': string;
+    'form.listenPortHint': string;
     'form.username': string;
     'form.usernameHint': string;
     'form.password': string;

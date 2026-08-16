@@ -1,6 +1,9 @@
 import type { LanProxyUpdatePayload } from './contract.ts';
 /** The on-disk shape (a subset of the update payload; no derived fields). */
 export interface PersistedRuntimeSettings {
+    /** Proxy listen port override. */
+    listenPort?: number;
+    /** Deprecated forward-target override, kept for legacy persisted files. */
     upstreamPort?: number;
     username?: string;
     password?: string;
@@ -19,7 +22,7 @@ export declare class RuntimeSettingsFile {
 }
 export type UpdateValidation = {
     ok: true;
-    patch: Required<Pick<LanProxyUpdatePayload, 'upstreamPort' | 'username' | 'password'>> & LanProxyUpdatePayload;
+    patch: Required<Pick<LanProxyUpdatePayload, 'listenPort' | 'upstreamPort' | 'username' | 'password'>> & LanProxyUpdatePayload;
 } | {
     ok: false;
     message: string;
@@ -27,7 +30,8 @@ export type UpdateValidation = {
 /**
  * Validate an update payload from the settings page.
  * @param payload - the raw RPC payload.
- * @param listenPort - the proxy's listen port (upstream must differ from it).
+ * @param currentListenPort - the proxy's current listen port.
+ * @param currentUpstreamPort - the current forward-target (default service) port.
  * @returns the normalized patch, or a user-facing rejection message.
  */
-export declare function validateUpdate(payload: unknown, listenPort: number): UpdateValidation;
+export declare function validateUpdate(payload: unknown, currentListenPort: number, currentUpstreamPort: number): UpdateValidation;

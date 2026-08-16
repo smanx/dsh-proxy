@@ -48,7 +48,13 @@ export interface LanProxyStatus {
 
 /** Settings-section patch: only fields present are changed; omitted fields keep their values. */
 export interface LanProxyUpdatePayload {
-  /** New forward target port (1–65535, must differ from the listen port). */
+  /** New proxy listen port (1–65535, must differ from the default service port). */
+  listenPort?: number
+  /**
+   * Deprecated: new forward target port, kept so legacy persisted configs
+   * and scripts still apply. The settings page no longer edits it — the
+   * editable port is the proxy's own listen port.
+   */
   upstreamPort?: number
   /** New login username. */
   username?: string

@@ -51,6 +51,7 @@ export class ProxyController {
     this.settings = new RuntimeSettingsFile(opts.settingsFile)
     this.options = { ...opts.base }
     const persisted = this.settings.read()
+    if (persisted.listenPort !== undefined) this.options.listenPort = persisted.listenPort
     if (persisted.upstreamPort !== undefined) this.options.upstreamPort = persisted.upstreamPort
     if (persisted.username !== undefined) this.options.username = persisted.username
     if (persisted.password !== undefined) this.options.password = persisted.password
@@ -59,7 +60,10 @@ export class ProxyController {
   /** Whether a persisted runtime override exists (drives the status flag). */
   private persisted(): boolean {
     const current = this.settings.read()
-    return current.upstreamPort !== undefined || current.username !== undefined || current.password !== undefined
+    return current.listenPort !== undefined
+      || current.upstreamPort !== undefined
+      || current.username !== undefined
+      || current.password !== undefined
   }
 
   /**
@@ -198,13 +202,18 @@ export class ProxyController {
   async update(payload: unknown): Promise<UpdateOutcome> {
     // Validate against the actually bound port: with listenPort 0 the OS
     // assigns the port, and the configured 0 must never be the comparison.
-    const check = validateUpdate(payload, this.boundPort ?? this.options.listenPort)
+    const check = validateUpdate(
+      payload,
+      this.boundPort ?? this.options.listenPort,
+      this.options.upstreamPort,
+    )
     if (!check.ok) return { ok: false, message: check.message }
     const patch = check.patch as LanProxyUpdatePayload
 
     const next: LanProxyUpdatePayload = { ...this.settings.read(), ...patch }
     this.settings.write(next)
 
+    if (patch.listenPort !== undefined) this.options.listenPort = patch.listenPort
     if (patch.upstreamPort !== undefined) this.options.upstreamPort = patch.upstreamPort
     if (patch.username !== undefined) this.options.username = patch.username
     if (patch.password !== undefined) this.options.password = patch.password
