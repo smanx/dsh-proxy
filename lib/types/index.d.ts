@@ -5,6 +5,11 @@
  * refuses `--host 0.0.0.0` for the web server itself — remote code execution
  * exposure — so this plugin is the sanctioned way to serve the surface beyond
  * loopback, with authentication in front.
+ *
+ * The plugin also mounts the `/dsh-lan-proxy` generic Connection RPC channel:
+ * `status` reads the running proxy, `update` persists a settings patch (target
+ * upstream port, username, password) into `$DSH_HOME/dsh-lan-proxy.json` and
+ * restarts the forwarding service — the backend of the settings section.
  */
 import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
@@ -12,7 +17,7 @@ export { lanAddresses, startLanProxy } from './proxy.ts';
 export type { LanProxyHandle, LanProxyOptions } from './proxy.ts';
 /** Stable Cordis plugin name (the Loader entry and package name). */
 export declare const name = "dsh-lan-proxy";
-/** Services required before load: the web server, whose bound port is the default upstream. */
+/** Services required before load: the web server (upstream port source) and the Connection RPC registry. */
 export declare const inject: string[];
 /** Plugin configuration, validated at load by the Loader. */
 export interface Config {
@@ -50,8 +55,9 @@ export declare const Config: z<Schemastery.ObjectS<{
     sessionTtlHours: z<number, number>;
 }>>;
 /**
- * Start the proxy as an effect on this plugin's fiber: unloading the plugin
- * closes the listener and every upgraded socket.
+ * Mount the proxy and the RPC channel as effects on this plugin's fiber:
+ * unloading the plugin closes the listener, every upgraded socket, and the
+ * channel.
  * @param ctx - host cordis context.
  * @param config - validated plugin configuration (schema defaults applied).
  */
