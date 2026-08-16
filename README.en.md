@@ -17,8 +17,18 @@ Supports Basic Auth, LAN access, and `crypto.randomUUID` polyfill injection.
   <img src="doc/image-en.png" alt="dsh-lan-proxy settings page (English UI)" width="720" />
 </p>
 
+### Install
+
+**Online install (recommended)** — directly from GitHub, no need to download the repository:
+
 ```bash
-dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy
+dsh plugin --profile web add github:smanx/dsh-proxy#main
+```
+
+**Local install** (repository cloned/downloaded on this machine):
+
+```bash
+dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
 After restarting `dsh web`, visit `http://<your-LAN-IP>:3081` and the browser shows the native Basic Auth dialog.
@@ -26,7 +36,9 @@ Details: [`dsh-lan-proxy/README.md`](dsh-lan-proxy/README.md).
 
 ## Standalone executables (go/ and node/)
 
-Alternative when you do not use DSH or need a separate process: two equivalent single-file builds (interactive start, config memory, non-interactive CLI flags):
+Alternative when you do not use DSH or need a separate process: two equivalent single-file builds (interactive start, config memory, non-interactive CLI flags).
+
+**Download install**: grab the single executable for your platform from [GitHub Releases](https://github.com/smanx/dsh-proxy/releases) (Go ~6-7 MB / Node ~80-120 MB), put it anywhere and run it; on macOS/Linux `chmod +x` first.
 
 | Directory | Language | Single-file size | Notes |
 |---|---|---|---|

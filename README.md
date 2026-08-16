@@ -17,15 +17,27 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
   <img src="doc/image-zh.png" alt="dsh-lan-proxy 设置页面（中文界面）" width="720" />
 </p>
 
+### 安装
+
+**在线安装（推荐）**——直接从 GitHub 安装（无需下载仓库）：
+
 ```bash
-dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy
+dsh plugin --profile web add github:smanx/dsh-proxy#main
+```
+
+**本地安装**（仓库已克隆/下载到本机）：
+
+```bash
+dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
 重启 `dsh web` 后，访问 `http://<局域网IP>:3081` 即弹 Basic Auth 登录框。详细说明见 [`dsh-lan-proxy/README.zh.md`](dsh-lan-proxy/README.zh.md)。
 
 ## 独立可执行版本（go/ 与 node/）
 
-不使用 DSH、或需要独立进程时的备选方案：两个等价的单文件版本（交互式启动、配置记忆、CLI 免交互参数）：
+不使用 DSH、或需要独立进程时的备选方案：两个等价的单文件版本（交互式启动、配置记忆、CLI 免交互参数）。
+
+**下载安装**：从 [GitHub Releases](https://github.com/smanx/dsh-proxy/releases) 下载对应平台的单个可执行文件（Go 版约 6-7 MB / Node 版约 80-120 MB），放到任意目录直接运行；macOS/Linux 先 `chmod +x`。
 
 | 目录 | 语言 | 单文件体积 | 说明 |
 |---|---|---|---|

@@ -14,8 +14,16 @@ DSH 插件：把 DeepSeek Harness Web 界面（默认 `127.0.0.1:3080`）转发�
 
 ## 安装
 
+**在线安装（推荐）**——直接从 GitHub 安装（无需下载仓库）：
+
 ```bash
-dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy/dsh-lan-proxy
+dsh plugin --profile web add github:smanx/dsh-proxy#main
+```
+
+**本地安装**（仓库已克隆/下载到本机）：
+
+```bash
+dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
 安装后**重启 `dsh web`**（Ctrl+C 后重新运行）即生效。若 3081 被占用（例如独立版 dsh-proxy 还在运行），先停掉它，或在配置里换一个端口。
