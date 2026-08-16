@@ -77,6 +77,40 @@ export const cssText = `
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.dsh_lanproxy_portStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.dsh_lanproxy_dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.dsh_lanproxy_dotOn {
+  background: var(--dsw-alias-fg-positive);
+  box-shadow: 0 0 0 3px var(--dsw-alias-bg-positive);
+}
+.dsh_lanproxy_dotOff {
+  background: var(--dsw-alias-fg-danger);
+  box-shadow: 0 0 0 3px var(--dsw-alias-bg-danger);
+}
+.dsh_lanproxy_portValue {
+  color: var(--dsw-alias-label-primary);
+  font-variant-numeric: tabular-nums;
+}
+.dsh_lanproxy_statusText {
+  font-size: 12px;
+  line-height: 18px;
+}
+.dsh_lanproxy_statusTextOn {
+  color: var(--dsw-alias-fg-positive);
+}
+.dsh_lanproxy_statusTextOff {
+  color: var(--dsw-alias-fg-danger);
+}
 .dsh_lanproxy_badge {
   padding: 2px 8px;
   border-radius: 999px;

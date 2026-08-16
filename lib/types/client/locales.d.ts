@@ -4,9 +4,12 @@ export declare const NS = "dsh-lan-proxy";
 export declare const zh: {
     nav: string;
     'status.title': string;
-    'status.listenHost': string;
-    'status.listenPort': string;
-    'status.upstream': string;
+    'status.proxyPort': string;
+    'status.proxyRunning': string;
+    'status.proxyStopped': string;
+    'status.targetPort': string;
+    'status.targetReachable': string;
+    'status.targetUnreachable': string;
     'status.username': string;
     'status.auth': string;
     'status.authOn': string;

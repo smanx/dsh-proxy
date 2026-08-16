@@ -45,6 +45,19 @@ function StatusRow(props: { label: ReactNode; value: ReactNode }): ReactNode {
   )
 }
 
+/** A port with a red/green running light and a short state label. */
+function PortStatus(props: { port: string; ok: boolean; okText: string; failText: string }): ReactNode {
+  return (
+    <span className="dsh_lanproxy_portStatus">
+      <span className={props.ok ? 'dsh_lanproxy_dot dsh_lanproxy_dotOn' : 'dsh_lanproxy_dot dsh_lanproxy_dotOff'} />
+      <span className="dsh_lanproxy_portValue">{props.port}</span>
+      <span className={props.ok ? 'dsh_lanproxy_statusText dsh_lanproxy_statusTextOn' : 'dsh_lanproxy_statusText dsh_lanproxy_statusTextOff'}>
+        {props.ok ? props.okText : props.failText}
+      </span>
+    </span>
+  )
+}
+
 /** Eye icon (visibility on). */
 function EyeIcon(): ReactNode {
   return (
@@ -94,7 +107,10 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
     applyPhase('loading')
     setStatusError(null)
     try {
-      const result = await rpc.call(RPC_CHANNEL, RPC_STATUS_ENDPOINT, undefined)
+      // The host envelope schema requires the `payload` field to be present,
+      // and JSON.stringify drops undefined-valued keys — an explicit empty
+      // object keeps the wire message valid.
+      const result = await rpc.call(RPC_CHANNEL, RPC_STATUS_ENDPOINT, {})
       if (result.ok) {
         setStatus(result.value as LanProxyStatus)
         applyPhase('ok')
@@ -180,9 +196,14 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
     </div>
   ) : status !== null ? (
     <>
-      <StatusRow label={t('status.listenHost')} value={status.listenHost} />
-      <StatusRow label={t('status.listenPort')} value={String(status.listenPort)} />
-      <StatusRow label={t('status.upstream')} value={`${status.upstreamHost}:${status.upstreamPort}`} />
+      <StatusRow
+        label={t('status.proxyPort')}
+        value={<PortStatus port={`${status.listenHost}:${status.listenPort}`} ok={status.proxyListening} okText={t('status.proxyRunning')} failText={t('status.proxyStopped')} />}
+      />
+      <StatusRow
+        label={t('status.targetPort')}
+        value={<PortStatus port={`${status.upstreamHost}:${status.upstreamPort}`} ok={status.upstreamReachable} okText={t('status.targetReachable')} failText={t('status.targetUnreachable')} />}
+      />
       <StatusRow label={t('status.username')} value={status.username} />
       <StatusRow label={t('status.auth')} value={authBadge} />
       <StatusRow label={t('status.sessionTtl')} value={`${status.sessionTtlHours} ${t('hours')}`} />
