@@ -31,7 +31,7 @@ dsh plugin --profile web add github:smanx/dsh-proxy#master
 dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
-重启 `dsh web` 后，访问 `http://<局域网IP>:3081` 即弹 Basic Auth 登录框。详细说明见 [`dsh-lan-proxy/README.zh.md`](dsh-lan-proxy/README.zh.md)。
+重启 `dsh web` 后，访问 `http://<局域网IP>:3081` 即弹 Basic Auth 登录框。详细说明见 [`dsh-proxy/README.zh.md`](dsh-proxy/README.zh.md)。
 
 ## 独立可执行版本（go/ 与 node/）
 

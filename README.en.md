@@ -32,7 +32,7 @@ dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
 After restarting `dsh web`, visit `http://<your-LAN-IP>:3081` and the browser shows the native Basic Auth dialog.
-Details: [`dsh-lan-proxy/README.md`](dsh-lan-proxy/README.md).
+Details: [`dsh-proxy/README.md`](dsh-proxy/README.md).
 
 ## Standalone executables (go/ and node/)
 
