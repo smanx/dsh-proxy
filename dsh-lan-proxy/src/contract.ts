@@ -6,7 +6,7 @@
  */
 
 /** Generic Connection RPC channel mounted by the host plugin. */
-export const RPC_CHANNEL = '/dsh-lan-proxy'
+export const RPC_CHANNEL = '/dsh-proxy'
 /** Endpoint: read the current proxy status. */
 export const RPC_STATUS_ENDPOINT = 'status'
 /** Endpoint: apply a settings patch and restart the forwarding service. */

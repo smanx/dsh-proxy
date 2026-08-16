@@ -2262,7 +2262,7 @@ function injectPolyfill(html, polyfill = RANDOM_UUID_POLYFILL) {
 }
 
 // src/proxy.ts
-var AUTH_REALM = "dsh-lan-proxy";
+var AUTH_REALM = "dsh-proxy";
 var PUBLIC_PATHS = /* @__PURE__ */ new Set(["/manifest.webmanifest", "/favicon.svg"]);
 function lanAddresses(port) {
   const ips = [];
@@ -2531,19 +2531,19 @@ var ProxyController = class {
       const bound = await handle.ready;
       this.boundPort = bound;
       const urls = handle.describeUrls(bound);
-      log("info", `dsh-lan-proxy: listening on ${this.options.listenHost}:${bound} -> http://${this.options.upstreamHost}:${this.options.upstreamPort}`);
-      log("info", `dsh-lan-proxy: \u672C\u673A\u8BBF\u95EE ${urls.local}`);
-      for (const url of urls.lan) log("info", `dsh-lan-proxy: \u5C40\u57DF\u7F51\u8BBF\u95EE ${url}`);
+      log("info", `dsh-proxy: listening on ${this.options.listenHost}:${bound} -> http://${this.options.upstreamHost}:${this.options.upstreamPort}`);
+      log("info", `dsh-proxy: \u672C\u673A\u8BBF\u95EE ${urls.local}`);
+      for (const url of urls.lan) log("info", `dsh-proxy: \u5C40\u57DF\u7F51\u8BBF\u95EE ${url}`);
       if (this.options.username !== "" && this.options.password !== "") {
-        log("info", `dsh-lan-proxy: password login enabled (username: ${this.options.username}) \u2014 browser Basic Auth`);
+        log("info", `dsh-proxy: password login enabled (username: ${this.options.username}) \u2014 browser Basic Auth`);
       } else if (this.options.username !== "" || this.options.password !== "") {
-        log("warn", "dsh-lan-proxy: password login NOT enabled \u2014 username and password must BOTH be set (only one is configured); the LAN surface is open");
+        log("warn", "dsh-proxy: password login NOT enabled \u2014 username and password must BOTH be set (only one is configured); the LAN surface is open");
       } else {
-        log("warn", "dsh-lan-proxy: password login is disabled (username and password are both empty); the LAN surface is open");
+        log("warn", "dsh-proxy: password login is disabled (username and password are both empty); the LAN surface is open");
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      log("error", `dsh-lan-proxy: failed to listen on ${this.options.listenHost}:${this.options.listenPort}: ${message} \u2014 stop any other dsh-proxy on this port, or change listenPort`);
+      log("error", `dsh-proxy: failed to listen on ${this.options.listenHost}:${this.options.listenPort}: ${message} \u2014 stop any other dsh-proxy on this port, or change listenPort`);
       this.handle = null;
     }
   }
@@ -2652,7 +2652,7 @@ var ProxyController = class {
     if (patch.password !== void 0) this.options.password = patch.password;
     await this.restart();
     this.probeCache = null;
-    this.log("info", "dsh-lan-proxy: settings updated via the settings page; forwarding service restarted");
+    this.log("info", "dsh-proxy: settings updated via the settings page; forwarding service restarted");
     const bothSet = this.options.username !== "" && this.options.password !== "";
     const anySet = this.options.username !== "" || this.options.password !== "";
     const notice = anySet && !bothSet ? "credentials-partial" : "saved";
@@ -2668,14 +2668,14 @@ var ProxyController = class {
 };
 
 // src/contract.ts
-var RPC_CHANNEL = "/dsh-lan-proxy";
+var RPC_CHANNEL = "/dsh-proxy";
 var RPC_STATUS_ENDPOINT = "status";
 var RPC_UPDATE_ENDPOINT = "update";
 var RPC_START_ENDPOINT = "start";
 var RPC_STOP_ENDPOINT = "stop";
 
 // src/index.ts
-var name = "dsh-lan-proxy";
+var name = "dsh-proxy";
 var inject = ["webServer", "connection"];
 var Config = Schema.object({
   listenHost: Schema.string().default("0.0.0.0"),
@@ -2699,7 +2699,7 @@ function apply(ctx, config) {
       username: resolved.username,
       password: resolved.password
     },
-    settingsFile: dshHomePath("dsh-lan-proxy.json"),
+    settingsFile: dshHomePath("dsh-proxy.json"),
     log
   });
   ctx.effect(
@@ -2707,7 +2707,7 @@ function apply(ctx, config) {
       await controller.start();
       return () => controller.stop();
     },
-    "dsh-lan-proxy.proxy"
+    "dsh-proxy.proxy"
   );
   ctx.effect(
     () => {
@@ -2748,7 +2748,7 @@ function apply(ctx, config) {
       );
       return () => void dispose();
     },
-    "dsh-lan-proxy.rpc"
+    "dsh-proxy.rpc"
   );
 }
 // Annotate the CommonJS export names for ESM import in node:

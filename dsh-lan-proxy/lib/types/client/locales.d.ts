@@ -1,5 +1,5 @@
-/** The `dsh-lan-proxy` locale namespace id. */
-export declare const NS = "dsh-lan-proxy";
+/** The `dsh-proxy` locale namespace id. */
+export declare const NS = "dsh-proxy";
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export declare const zh: {
     nav: string;
@@ -42,11 +42,11 @@ export declare const zh: {
     'form.updatedPartial': string;
     'form.failed': string;
 };
-/** The `dsh-lan-proxy` namespace key union. */
+/** The `dsh-proxy` namespace key union. */
 export type LanProxyKey = keyof typeof zh;
 declare module '@deepseek-ai/dsh-client-ui-slots' {
     interface LocaleNamespaceMap {
-        'dsh-lan-proxy': LanProxyKey;
+        'dsh-proxy': LanProxyKey;
     }
 }
 /** English dictionary, checked complete against the zh key set. */

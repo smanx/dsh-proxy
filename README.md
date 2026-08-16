@@ -5,7 +5,7 @@
 HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `127.0.0.1:3080`。
 支持 Basic Auth、局域网访问、`crypto.randomUUID` polyfill 注入。
 
-## DSH 插件版（推荐 · dsh-lan-proxy/）
+## DSH 插件版（推荐 · dsh-proxy）
 
 **推荐 DSH（DeepSeek Harness）用户使用**：把代理作为插件装进 web profile，**随 `dsh web` 启停**，无需单独进程、无需下载可执行文件，带完整设置页面。
 
@@ -14,7 +14,7 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
 - 默认空凭据 = 密码登录关闭；**同时设置**用户名和密码才启用
 
 <p align="center">
-  <img src="doc/image-zh.png" alt="dsh-lan-proxy 设置页面（中文界面）" width="720" />
+  <img src="doc/image-zh.png" alt="dsh-proxy 设置页面（中文界面）" width="720" />
 </p>
 
 ### 安装

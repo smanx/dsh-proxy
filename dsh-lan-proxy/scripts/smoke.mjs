@@ -1,5 +1,5 @@
 /**
- * Live smoke test for dsh-lan-proxy against a RUNNING DSH web app.
+ * Live smoke test for dsh-proxy against a RUNNING DSH web app.
  *
  * Starts the bundled proxy (lib/index.js — the same artifact the profile
  * loads) on 127.0.0.1:0, then verifies the full LAN story against the real
@@ -70,7 +70,7 @@ function rawUpgrade(port, path, headers) {
 
 async function main() {
   const upstream = `http://127.0.0.1:${UPSTREAM}`
-  console.log(`dsh-lan-proxy smoke — upstream ${upstream}, auth ${USER}/***`)
+  console.log(`dsh-proxy smoke — upstream ${upstream}, auth ${USER}/***`)
   const handle = startLanProxy({
     listenHost: '127.0.0.1',
     listenPort: 0,
@@ -147,22 +147,22 @@ async function main() {
 /**
  * Plugin-contract phase: drive the BUNDLED apply() (lib/index.cjs — the same
  * artifact the profile loads) against a fake cordis ctx, exercising the
- * /dsh-lan-proxy RPC channel, the settings persistence, and the restart path
+ * /dsh-proxy RPC channel, the settings persistence, and the restart path
  * end to end without the web app. $DSH_HOME is redirected to a temp dir so
  * the smoke never touches the user's real persisted config.
  */
 async function pluginContractPhase() {
-  console.log('\ndsh-lan-proxy plugin contract — bundled apply() with a fake ctx')
+  console.log('\ndsh-proxy plugin contract — bundled apply() with a fake ctx')
   const plugin = await import('../lib/index.cjs')
   check(
     'plugin exports name/inject/Config/apply',
     ['name', 'inject', 'Config', 'apply'].every((key) => key in plugin)
-      && plugin.name === 'dsh-lan-proxy'
+      && plugin.name === 'dsh-proxy'
       && plugin.inject.includes('webServer')
       && plugin.inject.includes('connection'),
   )
 
-  const tempHome = mkdtempSync(join(tmpdir(), 'dsh-lan-proxy-smoke-'))
+  const tempHome = mkdtempSync(join(tmpdir(), 'dsh-proxy-smoke-'))
   process.env.DSH_HOME = tempHome
   try {
     let registered = null
@@ -191,8 +191,8 @@ async function pluginContractPhase() {
     const proxyDisposer = await effectFns[0]()
     const rpcCleanup = effectFns[1]()
     check(
-      'RPC channel registered as /dsh-lan-proxy with loopback authority',
-      registered?.channel === '/dsh-lan-proxy' && registered?.options?.authority === 'loopback',
+      'RPC channel registered as /dsh-proxy with loopback authority',
+      registered?.channel === '/dsh-proxy' && registered?.options?.authority === 'loopback',
     )
 
     const status1 = await registered.handler('status', undefined, new AbortController().signal)
@@ -223,9 +223,9 @@ async function pluginContractPhase() {
       status2?.ok === true && status2.value?.username === 'smoke-user' && status2.value?.persisted === true,
     )
 
-    const persisted = JSON.parse(readFileSync(join(tempHome, 'dsh-lan-proxy.json'), 'utf8'))
+    const persisted = JSON.parse(readFileSync(join(tempHome, 'dsh-proxy.json'), 'utf8'))
     check(
-      'patch persisted to $DSH_HOME/dsh-lan-proxy.json',
+      'patch persisted to $DSH_HOME/dsh-proxy.json',
       persisted.username === 'smoke-user' && persisted.password === 'smoke-pass',
     )
 

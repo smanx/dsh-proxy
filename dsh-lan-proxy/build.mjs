@@ -1,6 +1,6 @@
 /**
  * Single-file CJS host build + single-file browser client build for
- * dsh-lan-proxy.
+ * dsh-proxy.
  *
  * Host (`lib/index.cjs`): fully self-contained — schemastery, http-proxy (a
  * CJS tree with dynamic requires, which esbuild cannot inline into ESM), and
@@ -9,7 +9,7 @@
  * loader's dynamic import() + unwrapExports handles the CJS shape natively.
  *
  * Client (`lib/client.js`): one CJS bundle wrapped in the ModuleLoader
- * factory handshake (served by the web app at /plugins/dsh-lan-proxy/client.js).
+ * factory handshake (served by the web app at /plugins/dsh-proxy/client.js).
  * Every @deepseek-ai/* import is type-only and erased; react stays external
  * (the app's module system provides it).
  */
@@ -43,7 +43,7 @@ await build({
   jsx: 'automatic',
   external: [...dshExternal, 'react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'scheduler'],
   banner: {
-    js: "window.__ModuleLoader__.load({ id: 'dsh-lan-proxy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;",
+    js: "window.__ModuleLoader__.load({ id: 'dsh-proxy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;",
   },
   footer: {
     js: 'return module.exports; } });',

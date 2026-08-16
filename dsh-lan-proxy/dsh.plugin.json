@@ -1,9 +1,9 @@
 {
-  "name": "dsh-lan-proxy",
+  "name": "dsh-proxy",
   "description": "LAN reverse proxy with web-based auth and a settings page for the DSH web app",
   "version": "0.1.0",
   "entry": {
-    "name": "dsh-lan-proxy",
+    "name": "dsh-proxy",
     "inject": [
       "webServer",
       "connection"

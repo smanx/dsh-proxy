@@ -1,7 +1,7 @@
 /**
  * The settings page section for the LAN proxy: shows the running port and
  * forward target, and edits the target upstream port, username, and password.
- * Saving calls the host `/dsh-lan-proxy` `update` endpoint, which persists the
+ * Saving calls the host `/dsh-proxy` `update` endpoint, which persists the
  * patch and restarts the forwarding service; the returned status re-renders
  * the card. All RPC results are rendered, never thrown to the shell.
  *
@@ -32,7 +32,7 @@ export interface SettingsSectionInjected {
 }
 
 /** Full section props: runtime share + injected face + the locale seat. */
-export type SettingsSectionProps = PropsRuntime<'settings.section'> & InjectFace<SettingsSectionInjected> & PropsLocale<'dsh-lan-proxy'>
+export type SettingsSectionProps = PropsRuntime<'settings.section'> & InjectFace<SettingsSectionInjected> & PropsLocale<'dsh-proxy'>
 
 /** Status-card lifecycle phase. */
 type StatusPhase = 'loading' | 'ok' | 'error'
@@ -139,7 +139,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         applyPhase('error')
       }
     } catch (err) {
-      console.error('[dsh-lan-proxy] status RPC failed:', err)
+      console.error('[dsh-proxy] status RPC failed:', err)
       setStatusError(err instanceof Error ? err.message : String(err))
       applyPhase('error')
     }
@@ -173,7 +173,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         setControlError(result.error.message)
       }
     } catch (err) {
-      console.error(`[dsh-lan-proxy] ${action} RPC failed:`, err)
+      console.error(`[dsh-proxy] ${action} RPC failed:`, err)
       setControlError(`${t('control.failed')}：${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setControlling(false)
@@ -218,7 +218,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         setError(result.error.message)
       }
     } catch (err) {
-      console.error('[dsh-lan-proxy] update RPC failed:', err)
+      console.error('[dsh-proxy] update RPC failed:', err)
       setError(`${t('form.failed')}：${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setSaving(false)

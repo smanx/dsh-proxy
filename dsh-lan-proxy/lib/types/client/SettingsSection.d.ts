@@ -5,7 +5,7 @@ export interface SettingsSectionInjected {
     rpc: ClientConnectionRpc;
 }
 /** Full section props: runtime share + injected face + the locale seat. */
-export type SettingsSectionProps = PropsRuntime<'settings.section'> & InjectFace<SettingsSectionInjected> & PropsLocale<'dsh-lan-proxy'>;
+export type SettingsSectionProps = PropsRuntime<'settings.section'> & InjectFace<SettingsSectionInjected> & PropsLocale<'dsh-proxy'>;
 /**
  * Render the section.
  * @param props - runtime share, the injected rpc caller, and `t`.

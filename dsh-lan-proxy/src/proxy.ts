@@ -54,7 +54,7 @@ export interface LanProxyHandle {
 }
 
 /** Basic Auth realm presented to unauthenticated clients. */
-const AUTH_REALM = 'dsh-lan-proxy'
+const AUTH_REALM = 'dsh-proxy'
 
 /**
  * Static files browsers fetch OUTSIDE the authenticated document context

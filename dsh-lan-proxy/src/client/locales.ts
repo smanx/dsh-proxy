@@ -1,12 +1,12 @@
 /**
- * `dsh-lan-proxy` locale namespace: the settings-section copy. Chinese is the
+ * `dsh-proxy` locale namespace: the settings-section copy. Chinese is the
  * product copy; English mirrors it. The namespace is merged into the shared
  * LocaleNamespaceMap so the section's `t` prop is fully typed.
  */
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 
-/** The `dsh-lan-proxy` locale namespace id. */
-export const NS = 'dsh-lan-proxy'
+/** The `dsh-proxy` locale namespace id. */
+export const NS = 'dsh-proxy'
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
@@ -51,12 +51,12 @@ export const zh = {
   'form.failed': '保存失败',
 } satisfies Record<string, string>
 
-/** The `dsh-lan-proxy` namespace key union. */
+/** The `dsh-proxy` namespace key union. */
 export type LanProxyKey = keyof typeof zh
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    'dsh-lan-proxy': LanProxyKey
+    'dsh-proxy': LanProxyKey
   }
 }
 

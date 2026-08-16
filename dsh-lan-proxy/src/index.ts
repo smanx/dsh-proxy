@@ -1,14 +1,14 @@
 /**
- * dsh-lan-proxy host plugin: mounts the authenticated LAN reverse proxy on a
+ * dsh-proxy host plugin: mounts the authenticated LAN reverse proxy on a
  * second port, forwarding the web app's loopback listener (127.0.0.1:3080 by
  * default) to the LAN with a web-based login gate. The harness deliberately
  * refuses `--host 0.0.0.0` for the web server itself — remote code execution
  * exposure — so this plugin is the sanctioned way to serve the surface beyond
  * loopback, with authentication in front.
  *
- * The plugin also mounts the `/dsh-lan-proxy` generic Connection RPC channel:
+ * The plugin also mounts the `/dsh-proxy` generic Connection RPC channel:
  * `status` reads the running proxy, `update` persists a settings patch (target
- * upstream port, username, password) into `$DSH_HOME/dsh-lan-proxy.json` and
+ * upstream port, username, password) into `$DSH_HOME/dsh-proxy.json` and
  * restarts the forwarding service — the backend of the settings section.
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -27,7 +27,7 @@ export { lanAddresses, startLanProxy } from './proxy.ts'
 export type { LanProxyHandle, LanProxyOptions } from './proxy.ts'
 
 /** Stable Cordis plugin name (the Loader entry and package name). */
-export const name = 'dsh-lan-proxy'
+export const name = 'dsh-proxy'
 
 /** Services required before load: the web server (upstream port source) and the Connection RPC registry. */
 export const inject = ['webServer', 'connection']
@@ -79,7 +79,7 @@ export function apply(ctx: Context, config?: Config): void {
       username: resolved.username,
       password: resolved.password,
     },
-    settingsFile: dshHomePath('dsh-lan-proxy.json'),
+    settingsFile: dshHomePath('dsh-proxy.json'),
     log,
   })
 
@@ -88,7 +88,7 @@ export function apply(ctx: Context, config?: Config): void {
       await controller.start()
       return () => controller.stop()
     },
-    'dsh-lan-proxy.proxy',
+    'dsh-proxy.proxy',
   )
 
   ctx.effect(
@@ -132,6 +132,6 @@ export function apply(ctx: Context, config?: Config): void {
       )
       return () => void dispose()
     },
-    'dsh-lan-proxy.rpc',
+    'dsh-proxy.rpc',
   )
 }

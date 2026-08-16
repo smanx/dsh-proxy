@@ -1,4 +1,4 @@
-window.__ModuleLoader__.load({ id: 'dsh-lan-proxy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;
+window.__ModuleLoader__.load({ id: 'dsh-proxy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;
 "use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -30,7 +30,7 @@ module.exports = __toCommonJS(index_exports);
 var import_react = require("react");
 
 // src/contract.ts
-var RPC_CHANNEL = "/dsh-lan-proxy";
+var RPC_CHANNEL = "/dsh-proxy";
 var RPC_STATUS_ENDPOINT = "status";
 var RPC_UPDATE_ENDPOINT = "update";
 var RPC_START_ENDPOINT = "start";
@@ -108,7 +108,7 @@ function SettingsSection({ rpc, t }) {
         applyPhase("error");
       }
     } catch (err) {
-      console.error("[dsh-lan-proxy] status RPC failed:", err);
+      console.error("[dsh-proxy] status RPC failed:", err);
       setStatusError(err instanceof Error ? err.message : String(err));
       applyPhase("error");
     }
@@ -137,7 +137,7 @@ function SettingsSection({ rpc, t }) {
         setControlError(result.error.message);
       }
     } catch (err) {
-      console.error(`[dsh-lan-proxy] ${action} RPC failed:`, err);
+      console.error(`[dsh-proxy] ${action} RPC failed:`, err);
       setControlError(`${t("control.failed")}\uFF1A${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setControlling(false);
@@ -174,7 +174,7 @@ function SettingsSection({ rpc, t }) {
         setError(result.error.message);
       }
     } catch (err) {
-      console.error("[dsh-lan-proxy] update RPC failed:", err);
+      console.error("[dsh-proxy] update RPC failed:", err);
       setError(`${t("form.failed")}\uFF1A${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
@@ -327,7 +327,7 @@ function SettingsSection({ rpc, t }) {
 }
 
 // src/client/locales.ts
-var NS = "dsh-lan-proxy";
+var NS = "dsh-proxy";
 var zh = {
   "nav": "\u5C40\u57DF\u7F51\u4EE3\u7406",
   "status.title": "\u8FD0\u884C\u72B6\u6001",
@@ -701,14 +701,14 @@ function adoptStyles() {
 var inject = ["slots", "locale", "connection"];
 function apply(ctx) {
   adoptStyles();
-  console.info("[dsh-lan-proxy] bundle loaded");
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-lan-proxy: dictionaries");
+  console.info("[dsh-proxy] bundle loaded");
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-proxy: dictionaries");
   const t = ctx.locale.bind(NS);
   const connection = ctx.get("connection");
   const rpc = connection.rpc;
   ctx.slots.inject("settings.section", () => ctx.slots.register({
     name: "settings.section",
-    id: "dsh-lan-proxy",
+    id: "dsh-proxy",
     order: 70,
     label: () => t("nav"),
     locale: NS,

@@ -7,9 +7,9 @@ import { RuntimeSettingsFile, normalizeRuntimeSettings, validateUpdate } from '.
 const dirs: string[] = []
 
 function tempFile(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-lan-proxy-settings-'))
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-proxy-settings-'))
   dirs.push(dir)
-  return join(dir, 'dsh-lan-proxy.json')
+  return join(dir, 'dsh-proxy.json')
 }
 
 afterEach(() => {

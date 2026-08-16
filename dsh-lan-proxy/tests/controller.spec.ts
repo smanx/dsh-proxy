@@ -12,9 +12,9 @@ let controller: ProxyController | null = null
 const logs: string[] = []
 
 function tempSettingsFile(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-lan-proxy-controller-'))
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-proxy-controller-'))
   dirs.push(dir)
-  return join(dir, 'dsh-lan-proxy.json')
+  return join(dir, 'dsh-proxy.json')
 }
 
 /** An upstream that answers every path with its marker text. */

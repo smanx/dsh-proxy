@@ -88,19 +88,19 @@ export class ProxyController {
       const bound = await handle.ready
       this.boundPort = bound
       const urls = handle.describeUrls(bound)
-      log('info', `dsh-lan-proxy: listening on ${this.options.listenHost}:${bound} -> http://${this.options.upstreamHost}:${this.options.upstreamPort}`)
-      log('info', `dsh-lan-proxy: 本机访问 ${urls.local}`)
-      for (const url of urls.lan) log('info', `dsh-lan-proxy: 局域网访问 ${url}`)
+      log('info', `dsh-proxy: listening on ${this.options.listenHost}:${bound} -> http://${this.options.upstreamHost}:${this.options.upstreamPort}`)
+      log('info', `dsh-proxy: 本机访问 ${urls.local}`)
+      for (const url of urls.lan) log('info', `dsh-proxy: 局域网访问 ${url}`)
       if (this.options.username !== '' && this.options.password !== '') {
-        log('info', `dsh-lan-proxy: password login enabled (username: ${this.options.username}) — browser Basic Auth`)
+        log('info', `dsh-proxy: password login enabled (username: ${this.options.username}) — browser Basic Auth`)
       } else if (this.options.username !== '' || this.options.password !== '') {
-        log('warn', 'dsh-lan-proxy: password login NOT enabled — username and password must BOTH be set (only one is configured); the LAN surface is open')
+        log('warn', 'dsh-proxy: password login NOT enabled — username and password must BOTH be set (only one is configured); the LAN surface is open')
       } else {
-        log('warn', 'dsh-lan-proxy: password login is disabled (username and password are both empty); the LAN surface is open')
+        log('warn', 'dsh-proxy: password login is disabled (username and password are both empty); the LAN surface is open')
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      log('error', `dsh-lan-proxy: failed to listen on ${this.options.listenHost}:${this.options.listenPort}: ${message} — stop any other dsh-proxy on this port, or change listenPort`)
+      log('error', `dsh-proxy: failed to listen on ${this.options.listenHost}:${this.options.listenPort}: ${message} — stop any other dsh-proxy on this port, or change listenPort`)
       this.handle = null
     }
   }
@@ -220,7 +220,7 @@ export class ProxyController {
 
     await this.restart()
     this.probeCache = null
-    this.log('info', 'dsh-lan-proxy: settings updated via the settings page; forwarding service restarted')
+    this.log('info', 'dsh-proxy: settings updated via the settings page; forwarding service restarted')
     const bothSet = this.options.username !== '' && this.options.password !== ''
     const anySet = this.options.username !== '' || this.options.password !== ''
     const notice: 'saved' | 'credentials-partial' = anySet && !bothSet ? 'credentials-partial' : 'saved'
