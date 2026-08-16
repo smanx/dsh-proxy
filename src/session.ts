@@ -115,8 +115,9 @@ export function checkBasicAuth(
 }
 
 /**
- * Combined gate: session cookie OR Basic Auth. When both configured
- * credentials are empty the gate is disabled entirely (open LAN access).
+ * Combined gate: session cookie OR Basic Auth. Password login is enabled only
+ * when BOTH configured credentials are non-empty — setting just one of them
+ * leaves the gate open (the settings page warns about this).
  */
 export class Authenticator {
   readonly sessions: SessionStore
@@ -125,8 +126,9 @@ export class Authenticator {
     this.sessions = new SessionStore(config)
   }
 
+  /** Password login is active only when both username and password are set. */
   get enabled(): boolean {
-    return this.config.username !== '' || this.config.password !== ''
+    return this.config.username !== '' && this.config.password !== ''
   }
 
   isAuthenticated(cookieHeader: string | undefined, authorization: string | undefined): boolean {

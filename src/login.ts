@@ -83,7 +83,7 @@ export function loginPage(error: boolean, sessionTtlHours: number): string {
       <label for="password">密码</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required />
       <button type="submit">登录</button>
-      <p class="hint">会话有效期 ${sessionTtlHours} 小时；代理服务重启后需重新登录。</p>
+      <p class="hint">会话有效期 ${sessionTtlHours} 小时；代理服务重启后需重新登录。也可通过浏览器 Basic Auth 弹窗登录。</p>
     </form>
   </body>
 </html>

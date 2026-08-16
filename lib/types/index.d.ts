@@ -29,9 +29,9 @@ export interface Config {
     upstreamHost: string;
     /** Upstream DSH port; 0 follows the web app's actual bound port. */
     upstreamPort: number;
-    /** Login / Basic Auth username; empty together with `password` disables auth. */
+    /** Login / Basic Auth username; password login is enabled only when both it and `password` are set. */
     username: string;
-    /** Login / Basic Auth password; empty together with `username` disables auth. */
+    /** Login / Basic Auth password; password login is enabled only when both it and `username` are set. */
     password: string;
     /** Session cookie lifetime in hours. */
     sessionTtlHours: number;

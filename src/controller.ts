@@ -89,10 +89,12 @@ export class ProxyController {
       log('info', `dsh-lan-proxy: listening on ${this.options.listenHost}:${bound} -> http://${this.options.upstreamHost}:${this.options.upstreamPort}`)
       log('info', `dsh-lan-proxy: 本机访问 ${urls.local}`)
       for (const url of urls.lan) log('info', `dsh-lan-proxy: 局域网访问 ${url}`)
-      if (this.options.username || this.options.password) {
-        log('info', `dsh-lan-proxy: web auth enabled (username: ${this.options.username}); sessions last ${Math.round(this.options.sessionTtlSeconds / 3600)}h and are invalidated on restart`)
+      if (this.options.username !== '' && this.options.password !== '') {
+        log('info', `dsh-lan-proxy: password login enabled (username: ${this.options.username}); sessions last ${Math.round(this.options.sessionTtlSeconds / 3600)}h and are invalidated on restart`)
+      } else if (this.options.username !== '' || this.options.password !== '') {
+        log('warn', 'dsh-lan-proxy: password login NOT enabled — username and password must BOTH be set (only one is configured); the LAN surface is open')
       } else {
-        log('warn', 'dsh-lan-proxy: auth is DISABLED (username and password are both empty) — the LAN surface is open')
+        log('warn', 'dsh-lan-proxy: password login is disabled (username and password are both empty); the LAN surface is open')
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -195,11 +197,15 @@ export class ProxyController {
     await this.restart()
     this.probeCache = null
     this.log('info', 'dsh-lan-proxy: settings updated via the settings page; forwarding service restarted')
+    const bothSet = this.options.username !== '' && this.options.password !== ''
+    const anySet = this.options.username !== '' || this.options.password !== ''
     return {
       ok: true,
       result: {
         status: await this.refreshStatus(),
-        message: '已保存并重启转发服务',
+        message: anySet && !bothSet
+          ? '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）'
+          : '已保存并重启转发服务',
       },
     }
   }

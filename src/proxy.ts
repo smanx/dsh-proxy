@@ -55,6 +55,8 @@ export interface LanProxyHandle {
 
 const MAX_LOGIN_BODY_BYTES = 16 * 1024
 const UNAUTHORIZED_JSON = '{"error":"unauthorized"}'
+/** Basic Auth realm presented to unauthenticated external clients. */
+const AUTH_REALM = 'dsh-lan-proxy'
 
 /** LAN IPv4 addresses the host currently has, as http URLs on `port`. */
 export function lanAddresses(port: number): string[] {
@@ -131,8 +133,27 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
   }
 
   const deny = (res: http.ServerResponse): void => {
-    res.writeHead(401, { 'content-type': 'application/json' })
+    res.writeHead(401, {
+      'content-type': 'application/json',
+      'www-authenticate': `Basic realm="${AUTH_REALM}"`,
+    })
     res.end(UNAUTHORIZED_JSON)
+  }
+
+  /**
+   * Challenge an unauthenticated browser navigation with HTTP Basic Auth:
+   * the 401 plus WWW-Authenticate makes the browser show its native Basic
+   * login dialog (the external Basic gate), and the login page served as the
+   * response body is what the user sees when the dialog is dismissed — the
+   * web-based fallback.
+   */
+  const challenge = (res: http.ServerResponse): void => {
+    res.writeHead(401, {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'www-authenticate': `Basic realm="${AUTH_REALM}"`,
+    })
+    res.end(loginPage(false, Math.max(1, Math.round(sessionTtlSeconds / 3600))))
   }
 
   const handleLogin = (req: http.IncomingMessage, res: http.ServerResponse): void => {
@@ -146,6 +167,11 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
       req.on('end', () => {
         if (tooBig) {
           redirect(res, '/login?error=1')
+          return
+        }
+        if (!auth.enabled) {
+          // Password login is off: the gate is open, nothing to validate.
+          redirect(res, '/')
           return
         }
         const form = parseUrlencoded(body)
@@ -197,7 +223,7 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
       }
       const accept = String(req.headers.accept ?? '')
       if (accept.includes('text/html')) {
-        redirect(res, '/login')
+        challenge(res)
         return
       }
       deny(res)
@@ -210,7 +236,7 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
   const upgradedSockets = new Set<net.Socket>()
   server.on('upgrade', (req, socket, head) => {
     if (!auth.isAuthenticated(req.headers.cookie, req.headers.authorization)) {
-      socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n')
+      socket.end(`HTTP/1.1 401 Unauthorized\r\nwww-authenticate: Basic realm="${AUTH_REALM}"\r\nConnection: close\r\n\r\n`)
       return
     }
     upgradedSockets.add(socket as net.Socket)
@@ -236,8 +262,15 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     for (const socket of upgradedSockets) socket.destroy()
     upgradedSockets.clear()
     await new Promise<void>((resolveClose) => {
+      // Stop accepting new connections; the listener is released immediately
+      // so a restart can rebind the same port. In-flight responses (e.g. the
+      // settings-page update answer travelling back through the proxy) get a
+      // short grace before connections are force-closed.
       server.close(() => resolveClose())
-      server.closeAllConnections()
+      const timer = setTimeout(() => {
+        server.closeAllConnections()
+      }, 500)
+      timer.unref?.()
     })
   }
 

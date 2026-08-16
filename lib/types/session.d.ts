@@ -36,13 +36,15 @@ export declare function readSessionCookie(cookieHeader: string | undefined): str
 /** Verify an HTTP Basic Authorization header against the configured pair. */
 export declare function checkBasicAuth(authorization: string | undefined, username: string, password: string): boolean;
 /**
- * Combined gate: session cookie OR Basic Auth. When both configured
- * credentials are empty the gate is disabled entirely (open LAN access).
+ * Combined gate: session cookie OR Basic Auth. Password login is enabled only
+ * when BOTH configured credentials are non-empty — setting just one of them
+ * leaves the gate open (the settings page warns about this).
  */
 export declare class Authenticator {
     readonly config: SessionConfig;
     readonly sessions: SessionStore;
     constructor(config: SessionConfig);
+    /** Password login is active only when both username and password are set. */
     get enabled(): boolean;
     isAuthenticated(cookieHeader: string | undefined, authorization: string | undefined): boolean;
 }
