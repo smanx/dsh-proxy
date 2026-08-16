@@ -1,0 +1,8 @@
+# dsh-lan-proxy bundle patch: mount the host plugin under its package name,
+# resolved through the profile's node_modules. Every knob has a schema default
+# in src/index.ts; override them from the profile's own cordis.patch.yml by
+# targeting this row's id (the patch replaces the whole config, so restate
+# every key you own).
+- insert:
+    - id: dsh-lan-proxy
+      name: dsh-lan-proxy
