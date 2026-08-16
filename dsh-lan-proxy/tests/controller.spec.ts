@@ -112,29 +112,38 @@ describe('ProxyController status', () => {
 })
 
 describe('ProxyController update', () => {
-  it('switches the forward target and restarts the service', async () => {
-    const portA = await startUpstream('UPSTREAM_A')
-    const portB = await startUpstream('UPSTREAM_B')
-    controller = new ProxyController({
-      base: baseOptions(portA),
-      settingsFile: tempSettingsFile(),
-      log: () => {},
-    })
+  it('changes the proxy listen port and rebinds the service', async () => {
+    const upstreamPort = await startUpstream('UPSTREAM')
+    controller = new ProxyController({ base: baseOptions(upstreamPort), settingsFile: tempSettingsFile(), log: () => {} })
     await controller.start()
-    const listenPort = controller.status().listenPort
+    const oldPort = controller.status().listenPort
 
-    const before = await fetchThrough(`http://127.0.0.1:${listenPort}/`, { authorization: basic('admin', 'admin') })
-    expect(before.text).toBe('UPSTREAM_A')
+    // Reserve a concrete port and release it so the proxy can bind it.
+    const probe = http.createServer(() => {})
+    await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve))
+    const newPort = (probe.address() as AddressInfo).port
+    await new Promise<void>((resolve) => probe.close(() => resolve()))
 
-    const out = await controller.update({ upstreamPort: portB })
+    const out = await controller.update({ listenPort: newPort })
     expect(out.ok).toBe(true)
     if (!out.ok) return
-    expect(out.result.status.upstreamPort).toBe(portB)
+    expect(out.result.status.listenPort).toBe(newPort)
+    expect(out.result.status.proxyListening).toBe(true)
     expect(out.result.message).toContain('重启')
 
-    // listenPort 0 asks the OS for a fresh port on every restart.
-    const after = await fetchThrough(`http://127.0.0.1:${out.result.status.listenPort}/`, { authorization: basic('admin', 'admin') })
-    expect(after.text).toBe('UPSTREAM_B')
+    const after = await fetchThrough(`http://127.0.0.1:${newPort}/`, { authorization: basic('admin', 'admin') })
+    expect(after.status).toBe(200)
+    expect(after.text).toBe('UPSTREAM')
+
+    // The old OS-assigned listener is gone.
+    let oldStatus = 0
+    try {
+      const r = await fetch(`http://127.0.0.1:${oldPort}/`, { redirect: 'manual' })
+      oldStatus = r.status
+    } catch {
+      oldStatus = 0
+    }
+    expect(oldStatus).toBe(0)
   })
 
   it('rotates credentials and restarts', async () => {
@@ -191,27 +200,31 @@ describe('ProxyController update', () => {
     expect(listenPort).toBeGreaterThan(0)
   })
 
-  it('persists the patch across controller instances', async () => {
-    const portA = await startUpstream('A')
-    const portB = await startUpstream('B')
+  it('persists the listen port and credentials across controller instances', async () => {
+    const upstreamPort = await startUpstream('A')
     const settingsFile = tempSettingsFile()
 
-    controller = new ProxyController({ base: baseOptions(portA), settingsFile, log: () => {} })
+    const probe = http.createServer(() => {})
+    await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve))
+    const fixedPort = (probe.address() as AddressInfo).port
+    await new Promise<void>((resolve) => probe.close(() => resolve()))
+
+    controller = new ProxyController({ base: baseOptions(upstreamPort), settingsFile, log: () => {} })
     await controller.start()
-    const out = await controller.update({ upstreamPort: portB, username: 'bob', password: 'pw' })
+    const out = await controller.update({ listenPort: fixedPort, username: 'bob', password: 'pw' })
     expect(out.ok).toBe(true)
     await controller.stop()
     controller = null
 
-    const restarted = new ProxyController({ base: baseOptions(portA), settingsFile, log: () => {} })
+    const restarted = new ProxyController({ base: baseOptions(upstreamPort), settingsFile, log: () => {} })
     controller = restarted
     await restarted.start()
     const status = restarted.status()
-    expect(status.upstreamPort).toBe(portB)
+    expect(status.listenPort).toBe(fixedPort)
     expect(status.username).toBe('bob')
     expect(status.persisted).toBe(true)
     const res = await fetchThrough(`http://127.0.0.1:${status.listenPort}/`, { authorization: basic('bob', 'pw') })
-    expect(res.text).toBe('B')
+    expect(res.text).toBe('A')
   })
 
   it('rejects invalid patches without touching the running proxy', async () => {
@@ -221,7 +234,7 @@ describe('ProxyController update', () => {
     const before = controller.status()
 
     const listenPort = before.listenPort
-    const conflict = await controller.update({ upstreamPort: listenPort })
+    const conflict = await controller.update({ listenPort: upstreamPort })
     expect(conflict.ok).toBe(false)
     if (conflict.ok) return
 

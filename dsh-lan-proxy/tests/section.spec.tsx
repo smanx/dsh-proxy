@@ -226,7 +226,7 @@ describe('start/stop controls', () => {
 
 describe('update form', () => {
   it('pre-fills the fields with the current values and submits the full payload', async () => {
-    const updated = { ...STATUS, upstreamPort: 3090, username: 'alice' }
+    const updated = { ...STATUS, listenPort: 3091, username: 'alice' }
     const { rpc, calls } = makeRpc({
       update: () => Promise.resolve({ ok: true, value: { status: updated, message: '已保存并重启转发服务' } }),
     })
@@ -234,22 +234,22 @@ describe('update form', () => {
     await flush()
 
     const inputs = mounted.container.querySelectorAll('input')
-    expect((inputs[0] as HTMLInputElement).value).toBe('3080')
+    expect((inputs[0] as HTMLInputElement).value).toBe('3081')
     expect((inputs[1] as HTMLInputElement).value).toBe('admin')
     expect((inputs[2] as HTMLInputElement).value).toBe('s3cret')
 
-    setInputValue(inputs[0], '3090')
+    setInputValue(inputs[0], '3091')
     setInputValue(inputs[1], 'alice')
     flushSync(() => {})
     submitForm(mounted.container)
     await flush()
 
     const updateCall = calls.find((call) => call.endpoint === RPC_UPDATE_ENDPOINT)
-    expect(updateCall).toEqual({ channel: RPC_CHANNEL, endpoint: RPC_UPDATE_ENDPOINT, payload: { upstreamPort: 3090, username: 'alice', password: 's3cret' } })
+    expect(updateCall).toEqual({ channel: RPC_CHANNEL, endpoint: RPC_UPDATE_ENDPOINT, payload: { listenPort: 3091, username: 'alice', password: 's3cret' } })
     expect(mounted.container.textContent ?? '').toContain('已保存并重启转发服务')
-    expect(mounted.container.textContent ?? '').toContain('127.0.0.1:3090')
+    expect(mounted.container.textContent ?? '').toContain('0.0.0.0:3091')
     // After saving, the form is re-seeded with the returned status.
-    expect((inputs[0] as HTMLInputElement).value).toBe('3090')
+    expect((inputs[0] as HTMLInputElement).value).toBe('3091')
     expect((inputs[1] as HTMLInputElement).value).toBe('alice')
   })
 
@@ -269,7 +269,7 @@ describe('update form', () => {
     await flush()
 
     const updateCall = calls.find((call) => call.endpoint === RPC_UPDATE_ENDPOINT)
-    expect(updateCall).toEqual({ channel: RPC_CHANNEL, endpoint: RPC_UPDATE_ENDPOINT, payload: { upstreamPort: 3080, username: '', password: '' } })
+    expect(updateCall).toEqual({ channel: RPC_CHANNEL, endpoint: RPC_UPDATE_ENDPOINT, payload: { listenPort: 3081, username: '', password: '' } })
     expect(mounted.container.textContent ?? '').toContain('未启用')
   })
 
@@ -311,17 +311,35 @@ describe('update form', () => {
 
   it('surfaces a host-side rejection message', async () => {
     const { rpc } = makeRpc({
-      update: () => Promise.resolve({ ok: false, error: { code: 'bad-request', message: '转发目标端口不能与监听端口相同（都是 3081）', details: { issues: [] } } }),
+      update: () => Promise.resolve({ ok: false, error: { code: 'bad-request', message: '代理服务端口不能与默认服务端口相同（都是 3080）', details: { issues: [] } } }),
     })
     mounted = mount(<SettingsSection {...props(rpc)} />)
     await flush()
 
+    // 3081 → local conflict (equals the default service port 3080? no, it
+    // passes the local check), so use a port that passes locally and let the
+    // host reject it.
     const inputs = mounted.container.querySelectorAll('input')
-    setInputValue(inputs[0], '3081')
+    setInputValue(inputs[0], '3999')
     flushSync(() => {})
     submitForm(mounted.container)
     await flush()
 
-    expect(mounted.container.textContent ?? '').toContain('不能与监听端口相同')
+    expect(mounted.container.textContent ?? '').toContain('不能与默认服务端口相同')
+  })
+
+  it('rejects the default-service-port conflict locally', async () => {
+    const { rpc, calls } = makeRpc()
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+
+    const inputs = mounted.container.querySelectorAll('input')
+    setInputValue(inputs[0], '3080')
+    flushSync(() => {})
+    submitForm(mounted.container)
+    await flush()
+
+    expect(mounted.container.textContent ?? '').toContain('不能与默认服务端口相同')
+    expect(calls.some((call) => call.endpoint === RPC_UPDATE_ENDPOINT)).toBe(false)
   })
 })

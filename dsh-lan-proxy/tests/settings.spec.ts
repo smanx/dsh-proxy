@@ -18,7 +18,8 @@ afterEach(() => {
 
 describe('normalizeRuntimeSettings', () => {
   it('reads a well-formed object', () => {
-    expect(normalizeRuntimeSettings({ upstreamPort: 8080, username: 'a', password: 'b' })).toEqual({
+    expect(normalizeRuntimeSettings({ listenPort: 3081, upstreamPort: 8080, username: 'a', password: 'b' })).toEqual({
+      listenPort: 3081,
       upstreamPort: 8080,
       username: 'a',
       password: 'b',
@@ -26,8 +27,8 @@ describe('normalizeRuntimeSettings', () => {
   })
 
   it('drops malformed fields', () => {
-    expect(normalizeRuntimeSettings({ upstreamPort: '8080', username: 5, password: null })).toEqual({})
-    expect(normalizeRuntimeSettings({ upstreamPort: 3.14 })).toEqual({})
+    expect(normalizeRuntimeSettings({ listenPort: '3081', upstreamPort: '8080', username: 5, password: null })).toEqual({})
+    expect(normalizeRuntimeSettings({ listenPort: 3.14 })).toEqual({})
   })
 
   it('tolerates non-objects', () => {
@@ -58,35 +59,43 @@ describe('RuntimeSettingsFile', () => {
 
 describe('validateUpdate', () => {
   it('accepts a full patch', () => {
-    const out = validateUpdate({ upstreamPort: 3090, username: 'bob', password: 'x' }, 3081)
-    expect(out).toEqual({ ok: true, patch: { upstreamPort: 3090, username: 'bob', password: 'x' } })
+    const out = validateUpdate({ listenPort: 3091, username: 'bob', password: 'x' }, 3081, 3080)
+    expect(out).toEqual({ ok: true, patch: { listenPort: 3091, username: 'bob', password: 'x' } })
   })
 
   it('accepts partial patches', () => {
-    expect(validateUpdate({ username: 'bob' }, 3081)).toEqual({ ok: true, patch: { username: 'bob' } })
-    expect(validateUpdate({ password: '' }, 3081)).toEqual({ ok: true, patch: { password: '' } })
+    expect(validateUpdate({ username: 'bob' }, 3081, 3080)).toEqual({ ok: true, patch: { username: 'bob' } })
+    expect(validateUpdate({ password: '' }, 3081, 3080)).toEqual({ ok: true, patch: { password: '' } })
   })
 
-  it('rejects invalid or conflicting ports', () => {
-    expect(validateUpdate({ upstreamPort: 0 }, 3081)).toMatchObject({ ok: false })
-    expect(validateUpdate({ upstreamPort: 70000 }, 3081)).toMatchObject({ ok: false })
-    expect(validateUpdate({ upstreamPort: 3.5 }, 3081)).toMatchObject({ ok: false })
-    expect(validateUpdate({ upstreamPort: '3080' }, 3081)).toMatchObject({ ok: false })
-    const conflict = validateUpdate({ upstreamPort: 3081 }, 3081)
+  it('rejects invalid or conflicting listen ports', () => {
+    expect(validateUpdate({ listenPort: 0 }, 3081, 3080)).toMatchObject({ ok: false })
+    expect(validateUpdate({ listenPort: 70000 }, 3081, 3080)).toMatchObject({ ok: false })
+    expect(validateUpdate({ listenPort: 3.5 }, 3081, 3080)).toMatchObject({ ok: false })
+    expect(validateUpdate({ listenPort: '3081' }, 3081, 3080)).toMatchObject({ ok: false })
+    const conflict = validateUpdate({ listenPort: 3080 }, 3081, 3080)
     expect(conflict.ok).toBe(false)
-    if (!conflict.ok) expect(conflict.message).toContain('不能与监听端口相同')
+    if (!conflict.ok) expect(conflict.message).toContain('不能与默认服务端口相同')
+  })
+
+  it('still accepts the deprecated forward-target patch with its own conflict rule', () => {
+    const legacy = validateUpdate({ upstreamPort: 3090, username: 'bob' }, 3081, 3080)
+    expect(legacy).toEqual({ ok: true, patch: { upstreamPort: 3090, username: 'bob' } })
+    const conflict = validateUpdate({ upstreamPort: 3081 }, 3081, 3080)
+    expect(conflict.ok).toBe(false)
+    if (!conflict.ok) expect(conflict.message).toContain('不能与代理服务端口相同')
   })
 
   it('rejects non-object payloads, non-string credentials, and empty patches', () => {
-    expect(validateUpdate(null, 3081).ok).toBe(false)
-    expect(validateUpdate('x', 3081).ok).toBe(false)
-    expect(validateUpdate({ username: 5 }, 3081).ok).toBe(false)
-    expect(validateUpdate({ password: {} }, 3081).ok).toBe(false)
-    expect(validateUpdate({}, 3081).ok).toBe(false)
+    expect(validateUpdate(null, 3081, 3080).ok).toBe(false)
+    expect(validateUpdate('x', 3081, 3080).ok).toBe(false)
+    expect(validateUpdate({ username: 5 }, 3081, 3080).ok).toBe(false)
+    expect(validateUpdate({ password: {} }, 3081, 3080).ok).toBe(false)
+    expect(validateUpdate({}, 3081, 3080).ok).toBe(false)
   })
 
   it('caps credential length', () => {
-    expect(validateUpdate({ username: 'a'.repeat(65) }, 3081).ok).toBe(false)
-    expect(validateUpdate({ password: 'b'.repeat(129) }, 3081).ok).toBe(false)
+    expect(validateUpdate({ username: 'a'.repeat(65) }, 3081, 3080).ok).toBe(false)
+    expect(validateUpdate({ password: 'b'.repeat(129) }, 3081, 3080).ok).toBe(false)
   })
 })

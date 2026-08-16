@@ -231,10 +231,10 @@ async function pluginContractPhase() {
 
     const conflict = await registered.handler(
       'update',
-      { upstreamPort: status2.value.listenPort },
+      { listenPort: status2.value.upstreamPort },
       new AbortController().signal,
     )
-    check('conflicting upstream port rejected by the channel', conflict?.ok === false, JSON.stringify(conflict))
+    check('listen port equal to the default service port rejected', conflict?.ok === false, JSON.stringify(conflict))
 
     const cleared = await registered.handler(
       'update',
