@@ -2,8 +2,6 @@
 
 English | [中文](README.md)
 
-> For a quick start and download guide, see **[GUIDE.md](GUIDE.md)** (project intro, download links, quick start; Chinese).
-
 An HTTP + WebSocket reverse proxy that forwards a LAN port to the local DSH service `127.0.0.1:3080`.
 Supports Basic Auth, LAN access, and `crypto.randomUUID` polyfill injection.
 
