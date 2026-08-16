@@ -152,8 +152,18 @@ describe('Authenticator', () => {
     expect(auth.isAuthenticated(undefined, undefined)).toBe(true)
   })
 
-  it('keeps the gate enabled when only one credential is empty', () => {
-    const auth = new Authenticator({ username: 'admin', password: '', sessionTtlSeconds: 3600 })
+  it('stays disabled when only one credential is set (both are required)', () => {
+    const onlyUser = new Authenticator({ username: 'admin', password: '', sessionTtlSeconds: 3600 })
+    expect(onlyUser.enabled).toBe(false)
+    expect(onlyUser.isAuthenticated(undefined, undefined)).toBe(true)
+
+    const onlyPass = new Authenticator({ username: '', password: 'pw', sessionTtlSeconds: 3600 })
+    expect(onlyPass.enabled).toBe(false)
+    expect(onlyPass.isAuthenticated(undefined, undefined)).toBe(true)
+  })
+
+  it('enables the gate only when both credentials are set', () => {
+    const auth = new Authenticator({ username: 'admin', password: 'pw', sessionTtlSeconds: 3600 })
     expect(auth.enabled).toBe(true)
     expect(auth.isAuthenticated(undefined, undefined)).toBe(false)
   })

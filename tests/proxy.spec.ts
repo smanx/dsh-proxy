@@ -101,15 +101,18 @@ const loginCookie = async (): Promise<string> => {
 }
 
 describe('auth gate', () => {
-  it('redirects anonymous HTML navigations to /login', async () => {
+  it('challenges anonymous HTML navigations with Basic auth and the login page', async () => {
     const res = await fetch(`${base()}/`, { redirect: 'manual', headers: { accept: 'text/html' } })
-    expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('/login')
+    expect(res.status).toBe(401)
+    expect(res.headers.get('www-authenticate')).toMatch(/^Basic realm=/)
+    const body = await res.text()
+    expect(body).toContain('name="username"')
   })
 
-  it('answers anonymous /api requests with 401 JSON', async () => {
+  it('answers anonymous /api requests with 401 JSON and a Basic challenge', async () => {
     const res = await fetch(`${base()}/api/state`, { redirect: 'manual' })
     expect(res.status).toBe(401)
+    expect(res.headers.get('www-authenticate')).toMatch(/^Basic realm=/)
     expect(await res.json()).toEqual({ error: 'unauthorized' })
   })
 
@@ -150,11 +153,12 @@ describe('auth gate', () => {
     expect(logout.headers.get('set-cookie')).toContain('Max-Age=0')
 
     // The browser drops the cookie (Max-Age=0); a follow-up navigation
-    // carries no session and is sent back to /login. The stateless token
-    // itself stays valid until expiry — logout is client-side by design.
+    // carries no session and is challenged again with Basic auth (the login
+    // page is served as the 401 body). The stateless token itself stays valid
+    // until expiry — logout is client-side by design.
     const after = await fetch(`${base()}/`, { headers: { accept: 'text/html' }, redirect: 'manual' })
-    expect(after.status).toBe(302)
-    expect(after.headers.get('location')).toBe('/login')
+    expect(after.status).toBe(401)
+    expect(after.headers.get('www-authenticate')).toMatch(/^Basic realm=/)
   })
 
   it('accepts Basic Auth as a fallback', async () => {

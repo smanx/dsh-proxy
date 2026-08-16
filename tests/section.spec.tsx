@@ -99,6 +99,7 @@ describe('status card', () => {
     expect(text).toContain('127.0.0.1:3080')
     expect(text).toContain('可访问')
     expect(text).toContain('admin')
+    expect(text).toContain('密码登录')
     expect(text).toContain('已启用')
     // The status RPC must carry an explicit (present) payload field — the
     // host envelope schema rejects a dropped undefined payload key.
