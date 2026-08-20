@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { AddressInfo } from 'node:net'
@@ -247,6 +247,61 @@ describe('ProxyController update', () => {
     expect(stillUp.text).toBe('A')
     expect(controller.status()).toEqual(before)
   })
+
+  it('reports a failed rebind after save when the new listen port is taken', async () => {
+    const upstreamPort = await startUpstream('A')
+    const settingsFile = tempSettingsFile()
+    controller = new ProxyController({ base: baseOptions(upstreamPort), settingsFile, log: () => {} })
+    await controller.start()
+
+    // Reserve a concrete port and keep it occupied so the proxy cannot rebind.
+    const blocker = http.createServer(() => {})
+    servers.push(blocker)
+    await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve))
+    const takenPort = (blocker.address() as AddressInfo).port
+
+    const out = await controller.update({ listenPort: takenPort })
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.result.notice).toBe('saved-restart-failed')
+    expect(out.result.status.listenPort).toBe(takenPort)
+    expect(out.result.status.proxyListening).toBe(false)
+    expect(out.result.message).toContain('无法监听')
+    // The save itself still landed on disk.
+    const persisted = JSON.parse(readFileSync(settingsFile, 'utf8'))
+    expect(persisted.listenPort).toBe(takenPort)
+  })
+
+  it('saves without restarting when the proxy is stopped', async () => {
+    const upstreamPort = await startUpstream('A')
+    const settingsFile = tempSettingsFile()
+    // Occupy a port so the proxy cannot bind; the proxy stays stopped.
+    const blocker = http.createServer(() => {})
+    servers.push(blocker)
+    await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve))
+    const takenPort = (blocker.address() as AddressInfo).port
+
+    controller = new ProxyController({
+      base: { ...baseOptions(upstreamPort), listenPort: takenPort },
+      settingsFile,
+      log: () => {},
+    })
+    const startOutcome = await controller.start()
+    expect(startOutcome.ok).toBe(false)
+    expect(controller.status().proxyListening).toBe(false)
+
+    const out = await controller.update({ username: 'alice' })
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.result.notice).toBe('saved')
+    // The service stayed stopped and was not restarted.
+    expect(out.result.status.proxyListening).toBe(false)
+    expect(out.result.status.username).toBe('alice')
+    expect(out.result.message).toBe('已保存')
+    // The save still persisted.
+    const persisted = JSON.parse(readFileSync(settingsFile, 'utf8'))
+    expect(persisted.username).toBe('alice')
+  })
 })
 
 describe('ProxyController start failure', () => {
@@ -263,9 +318,11 @@ describe('ProxyController start failure', () => {
       settingsFile: tempSettingsFile(),
       log: (level, message) => logs.push(`${level}:${message}`),
     })
-    await controller.start()
+    const outcome = await controller.start()
     expect(controller.status().listenPort).toBe(takenPort)
     expect(controller.status().proxyListening).toBe(false)
+    expect(outcome.ok).toBe(false)
+    if (!outcome.ok) expect(outcome.message).toContain(String(takenPort))
     expect(logs.some((line) => line.includes('failed to listen'))).toBe(true)
   })
 })

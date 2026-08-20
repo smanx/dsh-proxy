@@ -33,6 +33,11 @@ export type UpdateOutcome =
   | { ok: true; result: LanProxyUpdateResult }
   | { ok: false; message: string }
 
+/** Result of one start attempt: a failed bind reports the reason instead of passing silently. */
+export type StartOutcome =
+  | { ok: true }
+  | { ok: false; message: string }
+
 /** Upstream reachability probe: connection timeout. */
 const PROBE_TIMEOUT_MS = 1500
 /** Upstream reachability probe: result cache lifetime. */
@@ -68,11 +73,12 @@ export class ProxyController {
 
   /**
    * Start the proxy (idempotent). Listen errors — the port is already taken,
-   * e.g. by the standalone dsh-proxy — are logged loudly but never thrown, so
-   * a failed forwarder can never take down the web app boot.
+   * e.g. by the standalone dsh-proxy — are logged loudly and reported through
+   * the outcome (never thrown), so a failed forwarder can never take down the
+   * web app boot while callers still learn why the listener is down.
    */
-  async start(): Promise<void> {
-    if (this.handle !== null) return
+  async start(): Promise<StartOutcome> {
+    if (this.handle !== null) return { ok: true }
     const log = this.log
     const handle = startLanProxy({
       listenHost: this.options.listenHost,
@@ -98,10 +104,15 @@ export class ProxyController {
       } else {
         log('warn', 'dsh-proxy: password login is disabled (username and password are both empty); the LAN surface is open')
       }
+      return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       log('error', `dsh-proxy: failed to listen on ${this.options.listenHost}:${this.options.listenPort}: ${message} — stop any other dsh-proxy on this port, or change listenPort`)
       this.handle = null
+      return {
+        ok: false,
+        message: `无法监听 ${this.options.listenHost}:${this.options.listenPort}：${message}。该端口可能已被占用，请更换代理服务端口或释放该端口后重试。`,
+      }
     }
   }
 
@@ -114,9 +125,9 @@ export class ProxyController {
   }
 
   /** Stop and start again with the current effective options (the "restart the forwarding service" verb). */
-  async restart(): Promise<void> {
+  async restart(): Promise<StartOutcome> {
     await this.stop()
-    await this.start()
+    return this.start()
   }
 
   /**
@@ -218,20 +229,39 @@ export class ProxyController {
     if (patch.username !== undefined) this.options.username = patch.username
     if (patch.password !== undefined) this.options.password = patch.password
 
-    await this.restart()
+    // A running service must restart to pick up the new effective options; a
+    // stopped service is just saved and stays stopped (starting it is the
+    // explicit start control's job).
+    const wasListening = this.boundPort !== null
+    const startOutcome = wasListening ? await this.restart() : null
     this.probeCache = null
-    this.log('info', 'dsh-proxy: settings updated via the settings page; forwarding service restarted')
+    this.log('info', `dsh-proxy: settings updated via the settings page; forwarding service ${startOutcome === null ? 'kept stopped' : startOutcome.ok ? 'restarted' : 'restart FAILED'}`)
     const bothSet = this.options.username !== '' && this.options.password !== ''
     const anySet = this.options.username !== '' || this.options.password !== ''
-    const notice: 'saved' | 'credentials-partial' = anySet && !bothSet ? 'credentials-partial' : 'saved'
+    const partial = anySet && !bothSet
+
+    if (startOutcome !== null && !startOutcome.ok) {
+      return {
+        ok: true,
+        result: {
+          status: await this.refreshStatus(),
+          notice: 'saved-restart-failed',
+          message: startOutcome.message,
+        },
+      }
+    }
+    const notice: 'saved' | 'saved-restarted' | 'credentials-partial-saved' | 'credentials-partial-restarted'
+      = startOutcome === null
+        ? (partial ? 'credentials-partial-saved' : 'saved')
+        : (partial ? 'credentials-partial-restarted' : 'saved-restarted')
     return {
       ok: true,
       result: {
         status: await this.refreshStatus(),
         notice,
-        message: notice === 'credentials-partial'
-          ? '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）'
-          : '已保存并重启转发服务',
+        message: startOutcome === null
+          ? (partial ? '已保存（注意：需同时设置用户名和密码才会启用密码登录）' : '已保存')
+          : (partial ? '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）' : '已保存并重启转发服务'),
       },
     }
   }

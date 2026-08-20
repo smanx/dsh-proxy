@@ -32,6 +32,7 @@ export const zh = {
   'control.started': '代理服务已启动',
   'control.stopped': '代理服务已停止',
   'control.failed': '操作失败',
+  'control.startHintPort': '代理服务未能启动，请尝试更换代理服务端口（当前端口可能已被占用）。',
   'form.title': '修改设置',
   'form.subtitle': '启用密码登录后，浏览器会弹出原生 Basic Auth 登录框；保存修改会重启转发服务。',
   'form.listenPort': '代理服务端口（监听端口）',
@@ -47,7 +48,10 @@ export const zh = {
   'form.invalidPort': '端口必须是 1–65535 的整数',
   'form.portConflict': '代理服务端口不能与默认服务端口相同',
   'form.updated': '已保存并重启转发服务',
+  'form.updatedSaved': '已保存',
   'form.updatedPartial': '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）',
+  'form.updatedSavedPartial': '已保存（注意：需同时设置用户名和密码才会启用密码登录）',
+  'form.updatedListenFailed': '已保存，但转发服务未能启动',
   'form.failed': '保存失败',
 } satisfies Record<string, string>
 
@@ -84,6 +88,7 @@ export const en: Record<LanProxyKey, string> = {
   'control.started': 'Proxy service started',
   'control.stopped': 'Proxy service stopped',
   'control.failed': 'Action failed',
+  'control.startHintPort': 'The proxy failed to start — try changing the proxy port (the current one may already be in use).',
   'form.title': 'Edit settings',
   'form.subtitle': 'With password login enabled, the browser shows its native Basic Auth dialog; saving restarts the forwarding service.',
   'form.listenPort': 'Proxy port (listen)',
@@ -99,6 +104,9 @@ export const en: Record<LanProxyKey, string> = {
   'form.invalidPort': 'Port must be an integer between 1 and 65535',
   'form.portConflict': 'Proxy port must differ from the default service port',
   'form.updated': 'Saved and the forwarding service restarted',
+  'form.updatedSaved': 'Saved',
   'form.updatedPartial': 'Saved and restarted (note: password login requires BOTH username and password)',
+  'form.updatedSavedPartial': 'Saved (note: password login requires BOTH username and password)',
+  'form.updatedListenFailed': 'Saved, but the forwarding service failed to start',
   'form.failed': 'Save failed',
 }

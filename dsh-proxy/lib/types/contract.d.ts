@@ -60,10 +60,19 @@ export interface LanProxyUpdatePayload {
 }
 /** Successful update response. */
 export interface LanProxyUpdateResult {
-    /** The status after the forwarding service restarted. */
+    /** The status after the forwarding service restarted (or stayed stopped). */
     status: LanProxyStatus;
-    /** Machine-readable outcome the settings page localizes into the UI language. */
-    notice: 'saved' | 'credentials-partial';
-    /** Deprecated human-readable confirmation (Chinese); kept for scripts. */
+    /**
+     * Machine-readable outcome the settings page localizes into the UI language:
+     * `saved`/`credentials-partial-saved` mean the service was stopped and was
+     * merely saved (no restart); the `*-restarted` variants mean it was running
+     * and got restarted; `saved-restart-failed` means a running service failed to
+     * rebind and the reason rides in `message`.
+     */
+    notice: 'saved' | 'saved-restarted' | 'saved-restart-failed' | 'credentials-partial-saved' | 'credentials-partial-restarted';
+    /**
+     * Deprecated human-readable confirmation (Chinese); kept for scripts. When
+     * `notice` is `saved-restart-failed`, this carries the rebind error reason.
+     */
     message: string;
 }

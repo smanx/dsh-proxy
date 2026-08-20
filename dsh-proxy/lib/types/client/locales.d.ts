@@ -24,6 +24,7 @@ export declare const zh: {
     'control.started': string;
     'control.stopped': string;
     'control.failed': string;
+    'control.startHintPort': string;
     'form.title': string;
     'form.subtitle': string;
     'form.listenPort': string;
@@ -39,7 +40,10 @@ export declare const zh: {
     'form.invalidPort': string;
     'form.portConflict': string;
     'form.updated': string;
+    'form.updatedSaved': string;
     'form.updatedPartial': string;
+    'form.updatedSavedPartial': string;
+    'form.updatedListenFailed': string;
     'form.failed': string;
 };
 /** The `dsh-proxy` namespace key union. */

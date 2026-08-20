@@ -131,8 +131,13 @@ function SettingsSection({ rpc, t }) {
         {}
       );
       if (result.ok) {
-        setStatus(result.value);
-        setControlMessage(action === "start" ? t("control.started") : t("control.stopped"));
+        const next = result.value;
+        setStatus(next);
+        if (action === "start" && !next.proxyListening) {
+          setControlError(t("control.startHintPort"));
+        } else {
+          setControlMessage(action === "start" ? t("control.started") : t("control.stopped"));
+        }
       } else {
         setControlError(result.error.message);
       }
@@ -168,7 +173,14 @@ function SettingsSection({ rpc, t }) {
         const value = result.value;
         setStatus(value.status);
         applyPhase("ok");
-        setMessage(t(value.notice === "credentials-partial" ? "form.updatedPartial" : "form.updated"));
+        const noticeText = {
+          "saved": t("form.updatedSaved"),
+          "saved-restarted": t("form.updated"),
+          "saved-restart-failed": `${t("form.updatedListenFailed")}\uFF1A${value.message}`,
+          "credentials-partial-saved": t("form.updatedSavedPartial"),
+          "credentials-partial-restarted": t("form.updatedPartial")
+        };
+        setMessage(noticeText[value.notice]);
         applyStatusToForm(value.status);
       } else {
         setError(result.error.message);
@@ -351,6 +363,7 @@ var zh = {
   "control.started": "\u4EE3\u7406\u670D\u52A1\u5DF2\u542F\u52A8",
   "control.stopped": "\u4EE3\u7406\u670D\u52A1\u5DF2\u505C\u6B62",
   "control.failed": "\u64CD\u4F5C\u5931\u8D25",
+  "control.startHintPort": "\u4EE3\u7406\u670D\u52A1\u672A\u80FD\u542F\u52A8\uFF0C\u8BF7\u5C1D\u8BD5\u66F4\u6362\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\uFF08\u5F53\u524D\u7AEF\u53E3\u53EF\u80FD\u5DF2\u88AB\u5360\u7528\uFF09\u3002",
   "form.title": "\u4FEE\u6539\u8BBE\u7F6E",
   "form.subtitle": "\u542F\u7528\u5BC6\u7801\u767B\u5F55\u540E\uFF0C\u6D4F\u89C8\u5668\u4F1A\u5F39\u51FA\u539F\u751F Basic Auth \u767B\u5F55\u6846\uFF1B\u4FDD\u5B58\u4FEE\u6539\u4F1A\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\u3002",
   "form.listenPort": "\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\uFF08\u76D1\u542C\u7AEF\u53E3\uFF09",
@@ -366,7 +379,10 @@ var zh = {
   "form.invalidPort": "\u7AEF\u53E3\u5FC5\u987B\u662F 1\u201365535 \u7684\u6574\u6570",
   "form.portConflict": "\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\u4E0D\u80FD\u4E0E\u9ED8\u8BA4\u670D\u52A1\u7AEF\u53E3\u76F8\u540C",
   "form.updated": "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1",
+  "form.updatedSaved": "\u5DF2\u4FDD\u5B58",
   "form.updatedPartial": "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09",
+  "form.updatedSavedPartial": "\u5DF2\u4FDD\u5B58\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09",
+  "form.updatedListenFailed": "\u5DF2\u4FDD\u5B58\uFF0C\u4F46\u8F6C\u53D1\u670D\u52A1\u672A\u80FD\u542F\u52A8",
   "form.failed": "\u4FDD\u5B58\u5931\u8D25"
 };
 var en = {
@@ -392,6 +408,7 @@ var en = {
   "control.started": "Proxy service started",
   "control.stopped": "Proxy service stopped",
   "control.failed": "Action failed",
+  "control.startHintPort": "The proxy failed to start \u2014 try changing the proxy port (the current one may already be in use).",
   "form.title": "Edit settings",
   "form.subtitle": "With password login enabled, the browser shows its native Basic Auth dialog; saving restarts the forwarding service.",
   "form.listenPort": "Proxy port (listen)",
@@ -407,7 +424,10 @@ var en = {
   "form.invalidPort": "Port must be an integer between 1 and 65535",
   "form.portConflict": "Proxy port must differ from the default service port",
   "form.updated": "Saved and the forwarding service restarted",
+  "form.updatedSaved": "Saved",
   "form.updatedPartial": "Saved and restarted (note: password login requires BOTH username and password)",
+  "form.updatedSavedPartial": "Saved (note: password login requires BOTH username and password)",
+  "form.updatedListenFailed": "Saved, but the forwarding service failed to start",
   "form.failed": "Save failed"
 };
 

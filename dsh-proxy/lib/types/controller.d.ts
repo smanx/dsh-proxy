@@ -23,6 +23,13 @@ export type UpdateOutcome = {
     ok: false;
     message: string;
 };
+/** Result of one start attempt: a failed bind reports the reason instead of passing silently. */
+export type StartOutcome = {
+    ok: true;
+} | {
+    ok: false;
+    message: string;
+};
 export declare class ProxyController {
     private readonly opts;
     private handle;
@@ -36,14 +43,15 @@ export declare class ProxyController {
     private persisted;
     /**
      * Start the proxy (idempotent). Listen errors — the port is already taken,
-     * e.g. by the standalone dsh-proxy — are logged loudly but never thrown, so
-     * a failed forwarder can never take down the web app boot.
+     * e.g. by the standalone dsh-proxy — are logged loudly and reported through
+     * the outcome (never thrown), so a failed forwarder can never take down the
+     * web app boot while callers still learn why the listener is down.
      */
-    start(): Promise<void>;
+    start(): Promise<StartOutcome>;
     /** Stop the proxy and every upgraded socket. */
     stop(): Promise<void>;
     /** Stop and start again with the current effective options (the "restart the forwarding service" verb). */
-    restart(): Promise<void>;
+    restart(): Promise<StartOutcome>;
     /**
      * Stop the proxy AFTER the caller's response has flushed back. The stop RPC
      * answer travels through the proxy itself when the settings page is reached

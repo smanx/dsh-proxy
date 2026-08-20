@@ -100,7 +100,16 @@ export function apply(ctx: Context, config?: Config): void {
             return { ok: true, value: await controller.refreshStatus() }
           }
           if (endpoint === RPC_START_ENDPOINT) {
-            await controller.start()
+            const outcome = await controller.start()
+            if (!outcome.ok) {
+              // The listener did not bind (e.g. the port is taken): answer with
+              // the real reason so the settings page reports it instead of
+              // claiming the proxy started.
+              return {
+                ok: false,
+                error: { code: 'bad-request', message: outcome.message, details: { issues: [] } },
+              }
+            }
             return { ok: true, value: await controller.refreshStatus() }
           }
           if (endpoint === RPC_STOP_ENDPOINT) {

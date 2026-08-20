@@ -167,8 +167,16 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         {},
       )
       if (result.ok) {
-        setStatus(result.value as LanProxyStatus)
-        setControlMessage(action === 'start' ? t('control.started') : t('control.stopped'))
+        const next = result.value as LanProxyStatus
+        setStatus(next)
+        // A start that did not actually bind must never read as "started": the
+        // host rejects on bind failure with the concrete reason, but guard here
+        // too — when the cause is unknown, steer the user to switch the port.
+        if (action === 'start' && !next.proxyListening) {
+          setControlError(t('control.startHintPort'))
+        } else {
+          setControlMessage(action === 'start' ? t('control.started') : t('control.stopped'))
+        }
       } else {
         setControlError(result.error.message)
       }
@@ -211,8 +219,16 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         setStatus(value.status)
         applyPhase('ok')
         // The host returns a machine-readable notice; the copy is localized
-        // here so it follows the current UI language.
-        setMessage(t(value.notice === 'credentials-partial' ? 'form.updatedPartial' : 'form.updated'))
+        // here so it follows the current UI language. A restart that failed to
+        // rebind carries the reason in the legacy message field.
+        const noticeText: Record<LanProxyUpdateResult['notice'], string> = {
+          'saved': t('form.updatedSaved'),
+          'saved-restarted': t('form.updated'),
+          'saved-restart-failed': `${t('form.updatedListenFailed')}：${value.message}`,
+          'credentials-partial-saved': t('form.updatedSavedPartial'),
+          'credentials-partial-restarted': t('form.updatedPartial'),
+        }
+        setMessage(noticeText[value.notice])
         applyStatusToForm(value.status)
       } else {
         setError(result.error.message)

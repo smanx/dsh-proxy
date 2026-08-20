@@ -222,13 +222,29 @@ describe('start/stop controls', () => {
     await flush()
     expect(mounted.container.textContent ?? '').toContain('boom')
   })
+
+  it('never reports "started" when the start response is not actually listening', async () => {
+    const stoppedStatus = { ...STATUS, proxyListening: false }
+    const { rpc, calls } = makeRpc({
+      status: () => Promise.resolve({ ok: true, value: stoppedStatus }),
+      control: () => Promise.resolve({ ok: true, value: stoppedStatus }),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+    controlButton(mounted.container, '启动').click()
+    await flush()
+    expect(calls.some((call) => call.endpoint === RPC_START_ENDPOINT)).toBe(true)
+    const text = mounted.container.textContent ?? ''
+    expect(text).not.toContain('代理服务已启动')
+    expect(text).toContain('更换代理服务端口')
+  })
 })
 
 describe('update form', () => {
   it('pre-fills the fields with the current values and submits the full payload', async () => {
     const updated = { ...STATUS, listenPort: 3091, username: 'alice' }
     const { rpc, calls } = makeRpc({
-      update: () => Promise.resolve({ ok: true, value: { status: updated, notice: 'saved', message: '已保存并重启转发服务' } }),
+      update: () => Promise.resolve({ ok: true, value: { status: updated, notice: 'saved-restarted', message: '已保存并重启转发服务' } }),
     })
     mounted = mount(<SettingsSection {...props(rpc)} />)
     await flush()
@@ -256,7 +272,7 @@ describe('update form', () => {
   it('submits empty strings when credentials are cleared (set-empty semantics)', async () => {
     const cleared = { ...STATUS, username: '', password: '', authEnabled: false }
     const { rpc, calls } = makeRpc({
-      update: () => Promise.resolve({ ok: true, value: { status: cleared, notice: 'saved', message: '已保存并重启转发服务' } }),
+      update: () => Promise.resolve({ ok: true, value: { status: cleared, notice: 'saved-restarted', message: '已保存并重启转发服务' } }),
     })
     mounted = mount(<SettingsSection {...props(rpc)} />)
     await flush()
@@ -278,7 +294,7 @@ describe('update form', () => {
     const { rpc } = makeRpc({
       update: () => Promise.resolve({
         ok: true,
-        value: { status: partial, notice: 'credentials-partial', message: '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）' },
+        value: { status: partial, notice: 'credentials-partial-restarted', message: '已保存并重启转发服务（注意：需同时设置用户名和密码才会启用密码登录）' },
       }),
     })
     mounted = mount(<SettingsSection {...props(rpc)} />)
@@ -286,6 +302,39 @@ describe('update form', () => {
     submitForm(mounted.container)
     await flush()
     expect(mounted.container.textContent ?? '').toContain('需同时设置用户名和密码')
+  })
+
+  it('reports a saved-but-failed rebind with the host reason', async () => {
+    const stopped = { ...STATUS, proxyListening: false }
+    const { rpc } = makeRpc({
+      update: () => Promise.resolve({
+        ok: true,
+        value: { status: stopped, notice: 'saved-restart-failed', message: '无法监听 0.0.0.0:3081：EADDRINUSE。该端口可能已被占用。' },
+      }),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+    submitForm(mounted.container)
+    await flush()
+    const text = mounted.container.textContent ?? ''
+    expect(text).toContain('已保存，但转发服务未能启动')
+    expect(text).toContain('EADDRINUSE')
+    expect(text).not.toContain('已保存并重启转发服务')
+  })
+
+  it('reports a plain save (no restart) when the proxy is stopped', async () => {
+    const stopped = { ...STATUS, proxyListening: false }
+    const { rpc } = makeRpc({
+      update: () => Promise.resolve({ ok: true, value: { status: stopped, notice: 'saved', message: '已保存' } }),
+    })
+    mounted = mount(<SettingsSection {...props(rpc)} />)
+    await flush()
+    submitForm(mounted.container)
+    await flush()
+    // The message element carries the notice; the page subtitle mentions
+    // restarting services, so assert against the message itself, not body text.
+    const messageEl = mounted.container.querySelector('.dsh_lanproxy_message')
+    expect(messageEl?.textContent).toBe('已保存')
   })
 
   it('rejects an invalid port locally without calling the host', async () => {

@@ -2511,11 +2511,12 @@ var ProxyController = class {
   }
   /**
    * Start the proxy (idempotent). Listen errors — the port is already taken,
-   * e.g. by the standalone dsh-proxy — are logged loudly but never thrown, so
-   * a failed forwarder can never take down the web app boot.
+   * e.g. by the standalone dsh-proxy — are logged loudly and reported through
+   * the outcome (never thrown), so a failed forwarder can never take down the
+   * web app boot while callers still learn why the listener is down.
    */
   async start() {
-    if (this.handle !== null) return;
+    if (this.handle !== null) return { ok: true };
     const log = this.log;
     const handle = startLanProxy({
       listenHost: this.options.listenHost,
@@ -2541,10 +2542,15 @@ var ProxyController = class {
       } else {
         log("warn", "dsh-proxy: password login is disabled (username and password are both empty); the LAN surface is open");
       }
+      return { ok: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       log("error", `dsh-proxy: failed to listen on ${this.options.listenHost}:${this.options.listenPort}: ${message} \u2014 stop any other dsh-proxy on this port, or change listenPort`);
       this.handle = null;
+      return {
+        ok: false,
+        message: `\u65E0\u6CD5\u76D1\u542C ${this.options.listenHost}:${this.options.listenPort}\uFF1A${message}\u3002\u8BE5\u7AEF\u53E3\u53EF\u80FD\u5DF2\u88AB\u5360\u7528\uFF0C\u8BF7\u66F4\u6362\u4EE3\u7406\u670D\u52A1\u7AEF\u53E3\u6216\u91CA\u653E\u8BE5\u7AEF\u53E3\u540E\u91CD\u8BD5\u3002`
+      };
     }
   }
   /** Stop the proxy and every upgraded socket. */
@@ -2557,7 +2563,7 @@ var ProxyController = class {
   /** Stop and start again with the current effective options (the "restart the forwarding service" verb). */
   async restart() {
     await this.stop();
-    await this.start();
+    return this.start();
   }
   /**
    * Stop the proxy AFTER the caller's response has flushed back. The stop RPC
@@ -2650,18 +2656,30 @@ var ProxyController = class {
     if (patch.upstreamPort !== void 0) this.options.upstreamPort = patch.upstreamPort;
     if (patch.username !== void 0) this.options.username = patch.username;
     if (patch.password !== void 0) this.options.password = patch.password;
-    await this.restart();
+    const wasListening = this.boundPort !== null;
+    const startOutcome = wasListening ? await this.restart() : null;
     this.probeCache = null;
-    this.log("info", "dsh-proxy: settings updated via the settings page; forwarding service restarted");
+    this.log("info", `dsh-proxy: settings updated via the settings page; forwarding service ${startOutcome === null ? "kept stopped" : startOutcome.ok ? "restarted" : "restart FAILED"}`);
     const bothSet = this.options.username !== "" && this.options.password !== "";
     const anySet = this.options.username !== "" || this.options.password !== "";
-    const notice = anySet && !bothSet ? "credentials-partial" : "saved";
+    const partial = anySet && !bothSet;
+    if (startOutcome !== null && !startOutcome.ok) {
+      return {
+        ok: true,
+        result: {
+          status: await this.refreshStatus(),
+          notice: "saved-restart-failed",
+          message: startOutcome.message
+        }
+      };
+    }
+    const notice = startOutcome === null ? partial ? "credentials-partial-saved" : "saved" : partial ? "credentials-partial-restarted" : "saved-restarted";
     return {
       ok: true,
       result: {
         status: await this.refreshStatus(),
         notice,
-        message: notice === "credentials-partial" ? "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09" : "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1"
+        message: startOutcome === null ? partial ? "\u5DF2\u4FDD\u5B58\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09" : "\u5DF2\u4FDD\u5B58" : partial ? "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1\uFF08\u6CE8\u610F\uFF1A\u9700\u540C\u65F6\u8BBE\u7F6E\u7528\u6237\u540D\u548C\u5BC6\u7801\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55\uFF09" : "\u5DF2\u4FDD\u5B58\u5E76\u91CD\u542F\u8F6C\u53D1\u670D\u52A1"
       }
     };
   }
@@ -2718,7 +2736,13 @@ function apply(ctx, config) {
             return { ok: true, value: await controller.refreshStatus() };
           }
           if (endpoint === RPC_START_ENDPOINT) {
-            await controller.start();
+            const outcome = await controller.start();
+            if (!outcome.ok) {
+              return {
+                ok: false,
+                error: { code: "bad-request", message: outcome.message, details: { issues: [] } }
+              };
+            }
             return { ok: true, value: await controller.refreshStatus() };
           }
           if (endpoint === RPC_STOP_ENDPOINT) {
