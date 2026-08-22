@@ -26,7 +26,7 @@ dsh plugin --profile web add github:smanx/dsh-proxy#master
 dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
-安装后包名为 **`@smanx/dsh-proxy`**（scoped，带用户名前缀），`dsh plugin ls` 中显示为 `@smanx/dsh-proxy@0.1.0`。
+安装后包名为 **`@smanx/dsh-proxy`**（scoped，带用户名前缀），`dsh plugin ls` 中显示为 `@smanx/dsh-proxy@0.1.1`。
 
 安装后**重启 `dsh web`**（Ctrl+C 后重新运行）即生效。若 3081 被占用（例如独立版 dsh-proxy 还在运行），先停掉它，或在配置里换一个端口。
 

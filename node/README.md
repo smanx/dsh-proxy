@@ -1,7 +1,9 @@
 # dsh-proxy
 
 HTTP + WebSocket 反向代理：把 `0.0.0.0:3081` 转发到本地 DSH 服务 `127.0.0.1:3080`。
-支持 Basic Auth、局域网访问、打包为 **Windows / macOS / Linux 单文件可执行程序**。
+支持 Basic Auth、局域网访问、dsh 0.1.1+ 客户端 loopback 信任补丁（设置页模型列表
+在 LAN 访问下不再报 "settings are unavailable in this browser"）、打包为
+**Windows / macOS / Linux 单文件可执行程序**。
 
 ## 一、打包版（推荐）
 
@@ -132,6 +134,23 @@ established` / 一直 pending。
 - 注入前：`host.describe` 请求不发出，mux/host 握手失败，无限重试 ❌
 - 注入后：`host.describe` 200，mux/host 均 `101 Switching Protocols`，实时正常 ✅
 
+### 关键修复：dsh 0.1.1+ 客户端 loopback 信任补丁（设置页模型列表报错的根因）
+
+dsh 0.1.1 起，前端在浏览器里按页面 `location.hostname` 计算 `connection.isLoopback`：
+非 loopback 主机名（局域网 IP）会被判为"远程浏览器"，设置镜像被强制保持
+**仅内存模式**且永不加载——设置 → 模型列表报
+`加载提供方目录失败: settings are unavailable in this browser`。
+
+主机名无法从注入的 HTML 伪造，所以本代理对所服务的 **JavaScript 响应做精确
+字节串重写**（与插件版 `src/clientpatch.ts` 等价）：
+
+- `dsh-client-connection` 包里 `isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),`
+  → `isLoopback: true,`（一处根治所有消费方）
+- `dsh-client-ui-settings` 包里 `connection.isLoopback ? "host" : "memory"` → `"host"`（纵深防御）
+
+该补丁无条件生效（与其它兼容修复一致）；Basic Auth 仍是唯一闸门。客户端包未压缩
+发布，needle 为字节级稳定串；上游若变更形态，受影响页面退回上游的远程降级行为。
+
 ### 常见 401：/manifest.webmanifest（浏览器抓取 PWA manifest 不带认证）
 
 启用 Basic Auth 后，浏览器抓取 `<link rel="manifest">` 声明的
@@ -160,7 +179,8 @@ node -e "const ws=new WebSocket('ws://127.0.0.1:3081/api/events.mux',{headers:{A
 
 - `changeOrigin: true` 会把 `Host` 头改写为上游地址，配合 `alignOrigin` 把浏览器
   的 `Origin` 也对齐到目标地址，通过 DSH 的 `/api` 同源校验（否则 LAN 访问会被拒 403）。
-- `proxy.on('proxyRes', ...)` 对 text/html 响应注入 `crypto.randomUUID` polyfill。
+- `proxy.on('proxyRes', ...)` 对 text/html 响应注入 `crypto.randomUUID` polyfill；
+  对 JavaScript 响应整包缓冲后应用 dsh 0.1.1+ 客户端 loopback 信任补丁。
 - 认证始终启用（打包版默认 admin/admin）；旧版计划任务托管方式：
   修改任务 `dsh-proxy` 的操作为
   `cmd /c set PROXY_USERNAME=yourname&& set PROXY_PASSWORD=yourpass&& cd /d C:\mydata\codes\dsh-proxy\node && node index.js >> proxy.log 2>> proxy.err`，

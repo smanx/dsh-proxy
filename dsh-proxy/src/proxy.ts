@@ -18,6 +18,16 @@
  * - The `crypto.randomUUID` polyfill is injected into every proxied HTML
  *   document, because LAN pages are a non-secure context where randomUUID is
  *   undefined.
+ *
+ * A fourth fix (dsh 0.1.1+) patches served JavaScript instead of HTML: the
+ * client now computes `connection.isLoopback` from `location.hostname` and
+ * keeps settings remote-only on non-loopback pages ("settings are unavailable
+ * in this browser"). Since the hostname cannot be spoofed, the proxy rewrites
+ * the bundle bytes to restore host-trust — unconditionally, like every other
+ * compatibility fix here: the Host/Origin rewrite already presents proxied
+ * traffic as loopback to the server-side fence, so withholding only the
+ * client-side alignment would leave the UI degraded while the wire stayed
+ * fully open. Basic Auth remains the one security barrier for the surface.
  */
 import http from 'node:http'
 import type { Duplex } from 'node:stream'
@@ -26,6 +36,7 @@ import os from 'node:os'
 import httpProxy from 'http-proxy'
 import { Authenticator } from './session.ts'
 import { injectPolyfill, RANDOM_UUID_POLYFILL } from './polyfill.ts'
+import { isJavaScriptContentType, patchClientScript } from './clientpatch.ts'
 
 export interface LanProxyOptions {
   /** Interface the proxy binds (0.0.0.0 for LAN access). */
@@ -105,26 +116,73 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     }
   })
 
-  // Inject the randomUUID polyfill into proxied HTML documents. The
-  // response streams chunk by chunk, so the first write is rewritten and
-  // content-length is dropped (the chunked stream then carries the body).
+  // Inject the randomUUID polyfill into proxied HTML documents, and rewrite
+  // served JavaScript so the client treats the authenticated proxy as
+  // host-trusted (see clientpatch.ts). Responses stream chunk by chunk, and
+  // the JS needles can span chunks, so the JS branch buffers the whole body;
+  // content-length is dropped in both cases (the chunked stream then carries
+  // the body).
   proxy.on('proxyRes', (proxyRes, _req, res) => {
     const contentType = String(proxyRes.headers['content-type'] ?? '')
-    if (!contentType.includes('text/html') || proxyRes.headers['content-encoding']) return
+    if (proxyRes.headers['content-encoding']) return
+    if (contentType.includes('text/html')) {
+      delete proxyRes.headers['content-length']
+      res.removeHeader('content-length')
+      let injected = false
+      // The interceptor must be attached before any data flows; http-proxy
+      // emits proxyRes before piping, so hooking res.write here is safe.
+      const origWrite = res.write.bind(res)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(res as any).write = (chunk: any, ...rest: any[]) => {
+        if (!injected) {
+          injected = true
+          const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk)
+          chunk = Buffer.from(injectPolyfill(text, RANDOM_UUID_POLYFILL))
+        }
+        return origWrite(chunk, ...rest)
+      }
+      return
+    }
+    // Applied unconditionally: the Host/Origin rewrite already lets the
+    // server-side fence treat proxied traffic as loopback, so withholding the
+    // client-side alignment would only leave the UI degraded (the pre-0.1.1
+    // behavior) while the wire stayed fully open. Basic Auth remains the one
+    // security barrier for the whole surface.
+    if (!isJavaScriptContentType(contentType)) return
     delete proxyRes.headers['content-length']
     res.removeHeader('content-length')
-    let injected = false
-    // The interceptor must be attached before any data flows; http-proxy
-    // emits proxyRes before piping, so hooking res.write here is safe.
+    const chunks: Buffer[] = []
+    let bufferedBytes = 0
+    let ended = false
     const origWrite = res.write.bind(res)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(res as any).write = (chunk: any, ...rest: any[]) => {
-      if (!injected) {
-        injected = true
-        const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk)
-        chunk = Buffer.from(injectPolyfill(text, RANDOM_UUID_POLYFILL))
+    const origEnd = res.end.bind(res)
+    const capture = (chunk: any): void => {
+      const part =
+        typeof chunk === 'string'
+          ? Buffer.from(chunk, 'utf8')
+          : ArrayBuffer.isView(chunk) || chunk instanceof ArrayBuffer
+            ? Buffer.from(chunk as Uint8Array)
+            : null
+      if (part !== null) {
+        chunks.push(part)
+        bufferedBytes += part.length
       }
-      return origWrite(chunk, ...rest)
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(res as any).write = (chunk: any, ...rest: any[]): boolean => {
+      capture(chunk)
+      return true
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(res as any).end = (chunk?: any, ...rest: any[]) => {
+      if (ended) return
+      ended = true
+      if (chunk !== undefined && chunk !== null && typeof chunk !== 'function') capture(chunk)
+      const text = Buffer.concat(chunks).toString('utf8')
+      const { code, matched } = patchClientScript(text)
+      if (matched.length > 0) log('info', `loopback-trust patch applied: ${matched.join(', ')}`)
+      const callback = [chunk, ...rest].find((arg) => typeof arg === 'function')
+      return callback === undefined ? origEnd(Buffer.from(code)) : origEnd(Buffer.from(code), callback)
     }
   })
 

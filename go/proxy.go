@@ -1,7 +1,8 @@
 package main
 
 // 代理核心：HTTP + WebSocket 反向代理，带 Basic Auth、Origin 对齐、
-// crypto.randomUUID polyfill 注入。功能与 JS 版（dsh-proxy）完全等价。
+// crypto.randomUUID polyfill 注入（HTML）与 dsh 0.1.1+ 客户端 loopback
+// 信任补丁（JS）。功能与 JS 版（dsh-proxy）完全等价。
 
 import (
 	"bytes"
@@ -26,6 +27,20 @@ import (
 // 不存在 → RPC 请求发不出去 → 实时通道(WS)建立失败。
 // 代理在转发 HTML 时注入基于 getRandomValues 的兼容实现（该 API 非安全源可用）。
 const polyfill = `<script>(function(){try{if(typeof crypto!=="undefined"&&crypto&&typeof crypto.randomUUID!=="function"){crypto.randomUUID=function(){var b=crypto.getRandomValues(new Uint8Array(16));b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;var h="";for(var i=0;i<16;i++){h+=b[i].toString(16).padStart(2,"0")}return h.slice(0,8)+"-"+h.slice(8,12)+"-"+h.slice(12,16)+"-"+h.slice(16,20)+"-"+h.slice(20)}}}catch(e){}})();</script>`
+
+// dsh 0.1.1+ 客户端 loopback 信任补丁（与插件版/Node 版等价）。
+// 新版前端按页面 location.hostname 判定"远程浏览器"：非 loopback 时设置镜像
+// 保持仅内存模式，设置页模型列表报 "settings are unavailable in this browser"。
+// 主机名无法从注入的 HTML 伪造，因此对所服务的 JS 做精确字节串重写，使局域网
+// 访问获得与本机一致的完整设置能力。与其它兼容修复一样无条件生效；Basic Auth
+// 是唯一闸门。客户端包未压缩发布，needle 为字节级稳定串；上游若变更形态，
+// 受影响页面退回上游的远程降级行为，不会出现新的错误。
+const (
+	loopbackNeedleConn    = `isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),`
+	loopbackReplaceConn   = `isLoopback: true,`
+	loopbackNeedleMirror  = `connection.isLoopback ? "host" : "memory"`
+	loopbackReplaceMirror = `"host"`
+)
 
 const authRealm = "dsh-proxy"
 
@@ -57,10 +72,16 @@ func startProxy(listenPort, dshPort int, username, password string) error {
 				pr.Out.Header.Set("Origin", targetOrigin)
 			}
 		},
-		// text/html 响应注入 crypto.randomUUID polyfill（compress 过的跳过）
+		// text/html 注入 crypto.randomUUID polyfill；JS 响应应用 loopback
+		// 信任补丁（compress 过的跳过）
 		ModifyResponse: func(resp *http.Response) error {
 			ct := resp.Header.Get("Content-Type")
-			if !strings.Contains(ct, "text/html") || resp.Header.Get("Content-Encoding") != "" {
+			if resp.Header.Get("Content-Encoding") != "" {
+				return nil
+			}
+			isHTML := strings.Contains(ct, "text/html")
+			isJS := isJavaScriptContentType(ct)
+			if !isHTML && !isJS {
 				return nil
 			}
 			body, err := io.ReadAll(resp.Body)
@@ -68,8 +89,12 @@ func startProxy(listenPort, dshPort int, username, password string) error {
 				return err
 			}
 			resp.Body.Close()
-			body = injectPolyfill(body)
-			resp.Body = io.NopCloser(strings.NewReader(string(body)))
+			if isHTML {
+				body = injectPolyfill(body)
+			} else {
+				body = patchClientScript(body)
+			}
+			resp.Body = io.NopCloser(bytes.NewReader(body))
 			resp.ContentLength = int64(len(body))
 			resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
 			return nil
@@ -126,6 +151,25 @@ func startProxy(listenPort, dshPort int, username, password string) error {
 		return fmt.Errorf("端口 %d 已被其他程序占用，请换一个目标端口后重试", listenPort)
 	}
 	return err
+}
+
+// isJavaScriptContentType 判断响应是否为 JavaScript 载荷（覆盖
+// text/javascript 与 application/javascript）。
+func isJavaScriptContentType(ct string) bool {
+	return strings.Contains(strings.ToLower(ct), "javascript")
+}
+
+// patchClientScript 对 JS 响应应用 loopback 信任补丁；未命中 needle 的普通
+// 包原样返回。
+func patchClientScript(body []byte) []byte {
+	out := body
+	if bytes.Contains(out, []byte(loopbackNeedleConn)) {
+		out = bytes.ReplaceAll(out, []byte(loopbackNeedleConn), []byte(loopbackReplaceConn))
+	}
+	if bytes.Contains(out, []byte(loopbackNeedleMirror)) {
+		out = bytes.ReplaceAll(out, []byte(loopbackNeedleMirror), []byte(loopbackReplaceMirror))
+	}
+	return out
 }
 
 // injectPolyfill 把 polyfill 注入到 HTML 的 <head> 之后；没有 <head> 则插到最前面。

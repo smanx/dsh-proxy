@@ -1,7 +1,7 @@
 'use strict';
 // 代理核心：HTTP + WebSocket 反向代理，带 Basic Auth、Origin 对齐、
-// crypto.randomUUID polyfill 注入。由 index.js（环境变量方式）和
-// app.js（打包版交互方式）共用。
+// crypto.randomUUID polyfill 注入（HTML）与 dsh 0.1.1+ 客户端 loopback
+// 信任补丁（JS）。由 index.js（环境变量方式）和 app.js（打包版交互方式）共用。
 const http = require('http');
 const os = require('os');
 const httpProxy = require('http-proxy');
@@ -15,6 +15,42 @@ const AUTH_REALM = 'dsh-proxy';
 // 不存在 → RPC 请求发不出去 → 实时通道(WS)建立失败。
 // 代理在转发 HTML 时注入基于 getRandomValues 的兼容实现（该 API 非安全源可用）。
 const POLYFILL = '<script>(function(){try{if(typeof crypto!=="undefined"&&crypto&&typeof crypto.randomUUID!=="function"){crypto.randomUUID=function(){var b=crypto.getRandomValues(new Uint8Array(16));b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;var h="";for(var i=0;i<16;i++){h+=b[i].toString(16).padStart(2,"0")}return h.slice(0,8)+"-"+h.slice(8,12)+"-"+h.slice(12,16)+"-"+h.slice(16,20)+"-"+h.slice(20)}}}catch(e){}})();</script>';
+
+// dsh 0.1.1+ 客户端 loopback 信任补丁（与插件版 src/clientpatch.ts 等价）。
+// 新版前端按页面 location.hostname 判定"远程浏览器"：非 loopback 时设置镜像
+// 保持仅内存模式，设置页模型列表报 "settings are unavailable in this browser"。
+// 主机名无法从注入的 HTML 伪造，因此对所服务的 JS 做精确字节串重写，使局域网
+// 访问获得与本机一致的完整设置能力。与其它兼容修复一样无条件生效；Basic Auth
+// 是唯一闸门。客户端包未压缩发布，needle 为字节级稳定串；上游若变更形态，
+// 受影响页面退回上游的远程降级行为，不会出现新的错误。
+const LOOPBACK_PATCHES = [
+  {
+    // dsh-client-connection：connection.isLoopback 的唯一诞生地，改这一处
+    // 所有消费方（设置镜像持久化、通用设置的文档存储、交付物打开文件等）
+    // 都把经代理的来源视作本机信任。
+    needle: 'isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),',
+    replacement: 'isLoopback: true,',
+  },
+  {
+    // dsh-client-ui-settings：纵深防御——连接层形态万一变化，两处镜像构造
+    // 仍保持 host 模式。
+    needle: 'connection.isLoopback ? "host" : "memory"',
+    replacement: '"host"',
+  },
+];
+
+function isJavaScriptContentType(ct) {
+  return String(ct || '').toLowerCase().includes('javascript');
+}
+
+function patchClientScript(code) {
+  let out = code;
+  for (const { needle, replacement } of LOOPBACK_PATCHES) {
+    if (!out.includes(needle)) continue;
+    out = out.split(needle).join(replacement);
+  }
+  return out;
+}
 
 /**
  * 启动反向代理。
@@ -75,27 +111,61 @@ function startProxy({ listenPort, dshPort, username = '', password = '', host = 
     changeOrigin: true,
   });
 
+  // HTML 注入 randomUUID polyfill（首块改写即可）；JS 响应整包缓冲后应用
+  // loopback 信任补丁——needle 可能跨 chunk，必须拼齐再替换。两种情况都丢弃
+  // content-length（改写后长度变化，由 chunked 流承载）。
   proxy.on('proxyRes', (proxyRes, req, res) => {
     const ct = String(proxyRes.headers['content-type'] || '');
-    if (!ct.includes('text/html') || proxyRes.headers['content-encoding']) return;
+    if (proxyRes.headers['content-encoding']) return;
+    if (ct.includes('text/html')) {
+      delete proxyRes.headers['content-length'];
+      res.removeHeader('content-length');
+      let injected = false;
+      const origWrite = res.write.bind(res);
+      res.write = function (chunk, ...rest) {
+        if (!injected) {
+          injected = true;
+          let str = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
+          const i = str.toLowerCase().indexOf('<head');
+          if (i !== -1) {
+            const e = str.indexOf('>', i);
+            str = e !== -1 ? str.slice(0, e + 1) + POLYFILL + str.slice(e + 1) : POLYFILL + str;
+          } else {
+            str = POLYFILL + str;
+          }
+          chunk = Buffer.from(str);
+        }
+        return origWrite(chunk, ...rest);
+      };
+      return;
+    }
+    if (!isJavaScriptContentType(ct)) return;
     delete proxyRes.headers['content-length'];
     res.removeHeader('content-length');
-    let injected = false;
+    const chunks = [];
+    const capture = (chunk) => {
+      const part =
+        typeof chunk === 'string'
+          ? Buffer.from(chunk, 'utf8')
+          : ArrayBuffer.isView(chunk) || chunk instanceof ArrayBuffer
+            ? Buffer.from(chunk)
+            : null;
+      if (part !== null) chunks.push(part);
+    };
     const origWrite = res.write.bind(res);
-    res.write = function (chunk, ...rest) {
-      if (!injected) {
-        injected = true;
-        let str = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
-        const i = str.toLowerCase().indexOf('<head');
-        if (i !== -1) {
-          const e = str.indexOf('>', i);
-          str = e !== -1 ? str.slice(0, e + 1) + POLYFILL + str.slice(e + 1) : POLYFILL + str;
-        } else {
-          str = POLYFILL + str;
-        }
-        chunk = Buffer.from(str);
-      }
-      return origWrite(chunk, ...rest);
+    const origEnd = res.end.bind(res);
+    let ended = false;
+    res.write = function (chunk) {
+      capture(chunk);
+      return true;
+    };
+    res.end = function (chunk, ...rest) {
+      if (ended) return;
+      ended = true;
+      if (chunk !== undefined && chunk !== null && typeof chunk !== 'function') capture(chunk);
+      const callback = [chunk, ...rest].find((arg) => typeof arg === 'function');
+      const out = Buffer.from(patchClientScript(Buffer.concat(chunks).toString('utf8')));
+      return callback === undefined ? origEnd(out) : origEnd(out, callback);
     };
   });
 

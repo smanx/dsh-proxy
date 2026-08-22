@@ -2261,6 +2261,39 @@ function injectPolyfill(html, polyfill = RANDOM_UUID_POLYFILL) {
   return polyfill + html;
 }
 
+// src/clientpatch.ts
+var LOOPBACK_TRUST_PATCHES = [
+  {
+    // dsh-client-connection: the one place `connection.isLoopback` is born;
+    // forcing true makes every consumer (settings mirror persistence,
+    // settings-general document store, deliverables open-file) treat the
+    // proxied origin as host-trusted.
+    needle: "isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),",
+    replacement: "isLoopback: true,",
+    purpose: "connection.isLoopback (settings mirror stays unavailable)"
+  },
+  {
+    // dsh-client-ui-settings: defense in depth — if the connection shape ever
+    // changes upstream, the two mirror constructions keep their host mode.
+    needle: 'connection.isLoopback ? "host" : "memory"',
+    replacement: '"host"',
+    purpose: "settings describe mirror persistence"
+  }
+];
+function isJavaScriptContentType(contentType) {
+  return contentType.toLowerCase().includes("javascript");
+}
+function patchClientScript(code) {
+  let out = code;
+  const matched = [];
+  for (const patch of LOOPBACK_TRUST_PATCHES) {
+    if (!out.includes(patch.needle)) continue;
+    matched.push(patch.purpose);
+    out = out.split(patch.needle).join(patch.replacement);
+  }
+  return { code: out, matched };
+}
+
 // src/proxy.ts
 var AUTH_REALM = "dsh-proxy";
 var PUBLIC_PATHS = /* @__PURE__ */ new Set(["/manifest.webmanifest", "/favicon.svg"]);
@@ -2303,18 +2336,50 @@ function startLanProxy(options) {
   });
   proxy.on("proxyRes", (proxyRes, _req, res) => {
     const contentType = String(proxyRes.headers["content-type"] ?? "");
-    if (!contentType.includes("text/html") || proxyRes.headers["content-encoding"]) return;
+    if (proxyRes.headers["content-encoding"]) return;
+    if (contentType.includes("text/html")) {
+      delete proxyRes.headers["content-length"];
+      res.removeHeader("content-length");
+      let injected = false;
+      const origWrite2 = res.write.bind(res);
+      res.write = (chunk, ...rest) => {
+        if (!injected) {
+          injected = true;
+          const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
+          chunk = Buffer.from(injectPolyfill(text, RANDOM_UUID_POLYFILL));
+        }
+        return origWrite2(chunk, ...rest);
+      };
+      return;
+    }
+    if (!isJavaScriptContentType(contentType)) return;
     delete proxyRes.headers["content-length"];
     res.removeHeader("content-length");
-    let injected = false;
+    const chunks = [];
+    let bufferedBytes = 0;
+    let ended = false;
     const origWrite = res.write.bind(res);
-    res.write = (chunk, ...rest) => {
-      if (!injected) {
-        injected = true;
-        const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
-        chunk = Buffer.from(injectPolyfill(text, RANDOM_UUID_POLYFILL));
+    const origEnd = res.end.bind(res);
+    const capture = (chunk) => {
+      const part = typeof chunk === "string" ? Buffer.from(chunk, "utf8") : ArrayBuffer.isView(chunk) || chunk instanceof ArrayBuffer ? Buffer.from(chunk) : null;
+      if (part !== null) {
+        chunks.push(part);
+        bufferedBytes += part.length;
       }
-      return origWrite(chunk, ...rest);
+    };
+    res.write = (chunk, ...rest) => {
+      capture(chunk);
+      return true;
+    };
+    res.end = (chunk, ...rest) => {
+      if (ended) return;
+      ended = true;
+      if (chunk !== void 0 && chunk !== null && typeof chunk !== "function") capture(chunk);
+      const text = Buffer.concat(chunks).toString("utf8");
+      const { code, matched } = patchClientScript(text);
+      if (matched.length > 0) log("info", `loopback-trust patch applied: ${matched.join(", ")}`);
+      const callback = [chunk, ...rest].find((arg) => typeof arg === "function");
+      return callback === void 0 ? origEnd(Buffer.from(code)) : origEnd(Buffer.from(code), callback);
     };
   });
   const alignOrigin = (req) => {

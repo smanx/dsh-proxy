@@ -11,6 +11,8 @@ dsh-proxy 的 **Go 轻量版**：HTTP + WebSocket 反向代理（转发到本地
   `/manifest.webmanifest` 免认证，避免浏览器抓取 manifest 时报 401）
 - Origin 对齐 + Host 改写（通过 DSH `/api` 同源校验，LAN 访问 WS 不 403）
 - HTML 注入 `crypto.randomUUID` polyfill（LAN 非安全上下文下实时通道可用）
+- dsh 0.1.1+ 客户端 loopback 信任补丁：重写所服务的 JS，使设置页模型列表等在
+  LAN 访问下不再报 "settings are unavailable in this browser"
 - 交互式启动：4 项配置预填可编辑（源端口 3080 / 目标端口 3081 / admin / admin）
 - 配置记忆：`config.json` 存于可执行文件同目录，下次启动自动预填
 - CLI 免交互参数（供计划任务/自动化）：

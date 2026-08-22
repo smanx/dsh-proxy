@@ -52,6 +52,9 @@ Alternative when you do not use DSH or need a separate process: two equivalent s
   `/manifest.webmanifest` bypass auth so the browser does not get a 401 when fetching the manifest)
 - Origin alignment + Host rewrite (passes DSH's `/api` same-origin check, so LAN WebSocket is not 403)
 - `crypto.randomUUID` polyfill injected into HTML (real-time channels work in non-secure LAN contexts)
+- dsh 0.1.1+ client loopback-trust patch: rewrites served JavaScript so the settings
+  Models page no longer reports "settings are unavailable in this browser" over the LAN
+  (same behavior as the plugin variant)
 - Interactive start: 4 pre-filled editable fields (source port 3080 / target port 3081 / admin / admin), **ports and credentials are editable**
 - Config memory: `config.json` next to the executable, pre-filled on next start
 - Non-interactive CLI flags (for scheduled tasks / automation):

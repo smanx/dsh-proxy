@@ -9,6 +9,8 @@ const USER = 'admin'
 const PASS = 's3cret'
 const UPSTREAM_HTML =
   '<!doctype html><html><head><title>up</title></head><body>UPSTREAM_MARKER</body></html>'
+const CONNECTION_NEEDLE =
+  'isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),'
 
 const basic = (username = USER, password = PASS): string =>
   `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
@@ -50,6 +52,14 @@ beforeEach(async () => {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ echoed: body, host: req.headers.host, origin: req.headers.origin }))
       })
+      return
+    }
+    if (pathname === '/plugins/x/client.js') {
+      // Served in two chunks to prove the JS patch buffers across chunks.
+      const code = `const a=1;${CONNECTION_NEEDLE}\nconst b=2;`
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' })
+      res.write(code.slice(0, 20))
+      res.end(code.slice(20))
       return
     }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
@@ -161,6 +171,38 @@ describe('content handling', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/svg+xml')
     expect(await res.text()).not.toContain('randomUUID')
+  })
+
+  it('rewrites served JavaScript to host-trust while Basic Auth enforces', async () => {
+    const res = await fetch(`${base()}/plugins/x/client.js`, { headers: { authorization: basic() } })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('text/javascript')
+    const code = await res.text()
+    expect(code).not.toContain('isLoopbackHostname')
+    expect(code).toContain('isLoopback: true,')
+    // The rewritten body must stay valid around the patch point.
+    expect(code).toBe('const a=1;isLoopback: true,\nconst b=2;')
+  })
+
+  it('applies the same JavaScript patch with password login off', async () => {
+    // The compatibility fixes are unconditional: with credentials empty the
+    // surface is open either way, and withholding only this alignment would
+    // leave settings degraded while every other RPC stayed reachable.
+    const openProxy = startLanProxy({
+      listenHost: '127.0.0.1',
+      listenPort: 0,
+      upstreamHost: '127.0.0.1',
+      upstreamPort: world.upstreamPort,
+      username: '',
+      password: '',
+    })
+    cleanup.splice(0, 0, () => openProxy.close())
+    const port = await openProxy.ready
+    const res = await fetch(`http://127.0.0.1:${port}/plugins/x/client.js`)
+    expect(res.status).toBe(200)
+    const code = await res.text()
+    expect(code).not.toContain(CONNECTION_NEEDLE)
+    expect(code).toBe('const a=1;isLoopback: true,\nconst b=2;')
   })
 })
 
