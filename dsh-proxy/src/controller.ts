@@ -16,6 +16,8 @@ export interface EffectiveProxyOptions {
   listenPort: number
   upstreamHost: string
   upstreamPort: number
+  /** DSH process token forwarded only during the initial browser-session exchange. */
+  upstreamToken: string
   username: string
   password: string
 }
@@ -85,6 +87,7 @@ export class ProxyController {
       listenPort: this.options.listenPort,
       upstreamHost: this.options.upstreamHost,
       upstreamPort: this.options.upstreamPort,
+      upstreamToken: this.options.upstreamToken,
       username: this.options.username,
       password: this.options.password,
       log,

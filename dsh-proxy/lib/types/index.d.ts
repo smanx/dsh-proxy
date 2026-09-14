@@ -57,4 +57,4 @@ export declare const Config: z<Schemastery.ObjectS<{
  * @param ctx - host cordis context.
  * @param config - validated plugin configuration (schema defaults applied).
  */
-export declare function apply(ctx: Context, config?: Config): void;
+export declare function apply(ctx: Context, config?: Config): Promise<void>;

@@ -7,6 +7,8 @@ export interface LanProxyOptions {
     upstreamHost: string;
     /** Upstream DSH port (the web app's actual bound port). */
     upstreamPort: number;
+    /** DSH process token used only for the first upstream browser-session exchange. */
+    upstreamToken?: string;
     /** Basic Auth username; password login is enabled only when both it and `password` are set. */
     username: string;
     /** Basic Auth password; password login is enabled only when both it and `username` are set. */

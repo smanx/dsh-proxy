@@ -5,6 +5,8 @@ export interface EffectiveProxyOptions {
     listenPort: number;
     upstreamHost: string;
     upstreamPort: number;
+    /** DSH process token forwarded only during the initial browser-session exchange. */
+    upstreamToken: string;
     username: string;
     password: string;
 }

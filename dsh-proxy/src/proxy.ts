@@ -2,9 +2,11 @@
  * The LAN reverse proxy core: an HTTP + WebSocket reverse proxy that forwards
  * to the local DSH service (127.0.0.1:<upstreamPort>) and gates every request
  * behind HTTP Basic Auth — the browser's NATIVE credential dialog, exactly
- * like the standalone dsh-proxy. No custom login page, no session cookies:
- * after a successful Basic login the browser caches the credentials for the
- * origin and sends them on every request (including WebSocket handshakes).
+ * like the standalone dsh-proxy. No custom login page or proxy-owned session
+ * exists: after a successful Basic login the browser caches the credentials
+ * for the origin and sends them on every request (including WebSocket
+ * handshakes). The first authenticated root request exchanges DSH's launch
+ * token for DSH's own browser-session cookie.
  * Pure node — no cordis; the plugin entry in index.ts wires it into the
  * harness lifecycle.
  *
@@ -48,6 +50,8 @@ export interface LanProxyOptions {
   upstreamHost: string
   /** Upstream DSH port (the web app's actual bound port). */
   upstreamPort: number
+  /** DSH process token used only for the first upstream browser-session exchange. */
+  upstreamToken?: string
   /** Basic Auth username; password login is enabled only when both it and `password` are set. */
   username: string
   /** Basic Auth password; password login is enabled only when both it and `username` are set. */
@@ -93,6 +97,7 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     listenPort,
     upstreamHost,
     upstreamPort,
+    upstreamToken = '',
     username,
     password,
     log = () => {},
@@ -184,6 +189,13 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     if (!auth.isAuthenticated(req.headers.authorization)) {
       challenge(res)
       return
+    }
+    // Basic Auth 通过后，仅在首次根页面请求中向上游注入启动令牌以兑换 DSH 会话 cookie。
+    if (req.method === 'GET' && pathname === '/' && upstreamToken !== ''
+      && !(req.headers.cookie ?? '').includes('dsh-auth-')) {
+      const upstreamUrl = new URL(req.url ?? '/', 'http://proxy.local')
+      upstreamUrl.searchParams.set('token', upstreamToken)
+      req.url = `${upstreamUrl.pathname}${upstreamUrl.search}`
     }
     alignOrigin(req)
     proxy.web(req, res)

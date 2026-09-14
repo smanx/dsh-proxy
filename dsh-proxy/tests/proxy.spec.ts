@@ -8,6 +8,7 @@ import { RANDOM_UUID_POLYFILL } from '../src/polyfill.ts'
 
 const USER = 'admin'
 const PASS = 's3cret'
+const UPSTREAM_TOKEN = 'upstream-launch-token'
 const UPSTREAM_HTML =
   '<!doctype html><html><head><title>up</title></head><body>UPSTREAM_MARKER</body></html>'
 const CONNECTION_NEEDLE =
@@ -39,7 +40,7 @@ interface World {
   proxy: LanProxyHandle
   proxyPort: number
   targetOrigin: string
-  seen: { host?: string; origin?: string }
+  seen: { host?: string; origin?: string; rootUrls: string[] }
 }
 
 let world: World
@@ -48,10 +49,11 @@ let cleanup: (() => Promise<void>)[]
 
 beforeEach(async () => {
   cleanup = []
-  const seen: World['seen'] = {}
+  const seen: World['seen'] = { rootUrls: [] }
 
   upstream = http.createServer((req, res) => {
     const pathname = new URL(req.url ?? '/', 'http://up').pathname
+    if (pathname === '/') seen.rootUrls.push(req.url ?? '/')
     if (pathname === '/api/state') {
       seen.host = req.headers.host
       seen.origin = req.headers.origin
@@ -110,6 +112,7 @@ beforeEach(async () => {
     listenPort: 0,
     upstreamHost: '127.0.0.1',
     upstreamPort,
+    upstreamToken: UPSTREAM_TOKEN,
     username: USER,
     password: PASS,
   })
@@ -149,6 +152,15 @@ describe('auth gate (native Basic Auth)', () => {
     expect(html).toContain('UPSTREAM_MARKER')
     expect(html).toContain(RANDOM_UUID_POLYFILL)
     expect(html.indexOf(RANDOM_UUID_POLYFILL)).toBeLessThan(html.indexOf('<title'))
+  })
+
+  it('injects the DSH launch token only until the browser has a DSH session cookie', async () => {
+    await fetch(`${base()}/`, { headers: { authorization: basic() } })
+    await fetch(`${base()}/`, {
+      headers: { authorization: basic(), cookie: 'dsh-auth-fixture=session' },
+    })
+
+    expect(world.seen.rootUrls).toEqual([`/?token=${UPSTREAM_TOKEN}`, '/'])
   })
 
   it('rejects a wrong Basic header', async () => {

@@ -3,7 +3,7 @@
 A DeepSeek Harness plugin that exposes the local DSH web app (default `127.0.0.1:3080`) on a **second, authenticated port** for LAN access.
 
 - **HTTP + WebSocket reverse proxy** — real-time streams keep working.
-- **Native Basic Auth (off by default)** — the same model as the standalone dsh-proxy: the **browser's own credential dialog**, no custom login page, no session cookies. Username and password default to empty (open LAN access); setting **both** in the settings page turns password login on, after which unauthenticated requests are answered with `401 + WWW-Authenticate: Basic` and the browser pops its native dialog. After a successful login the browser caches the credentials for the origin and sends them automatically (including on WebSocket handshakes).
+- **Native Basic Auth (off by default)** — the same model as the standalone dsh-proxy: the **browser's own credential dialog**, with no custom login page. Username and password default to empty (open LAN access); setting **both** in the settings page turns password login on, after which unauthenticated requests are answered with `401 + WWW-Authenticate: Basic` and the browser pops its native dialog. After a successful login the browser caches the credentials for the origin and sends them automatically (including on WebSocket handshakes).
 - **Settings page** — DSH settings → "LAN Proxy": shows the running ports and whether password login is enabled, **starts/stops the proxy**, and edits the proxy listen port, username, and password; saving persists the patch to `$DSH_HOME/dsh-proxy.json` and immediately restarts the forwarding service.
 - **Out-of-the-box compatibility fixes** — `Host`/`Origin` rewriting (passes the DSH `/api` same-origin trust fence from the LAN) and a `crypto.randomUUID` polyfill injected into proxied HTML (non-secure LAN contexts lack it, which would break every RPC).
 - **Lives inside `dsh web`** — no separate process; configured through the profile's `cordis.patch.yml`.
@@ -84,7 +84,7 @@ pnpm run smoke   # full live smoke test against a running DSH on 127.0.0.1:3080
 ## Authentication details
 
 - **Enablement**: password login is active only when `username` AND `password` are both non-empty (defaults are empty = open access); setting just one keeps it off.
-- **Mechanism**: HTTP Basic Auth via the browser's native dialog — every unauthenticated request (page, `/api/*`, scripts) gets `401 + WWW-Authenticate: Basic realm="dsh-proxy"`; WebSocket rejections carry the same header. There is **no custom login page and no session cookie**; after a successful login the browser caches the credentials per origin and sends them automatically (including on WebSocket handshakes).
+- **Mechanism**: HTTP Basic Auth via the browser's native dialog — every unauthenticated request (page, `/api/*`, scripts) gets `401 + WWW-Authenticate: Basic realm="dsh-proxy"`; WebSocket rejections carry the same header. After Basic Auth succeeds, the proxy submits the DSH launch token to the loopback upstream only on the first root request so DSH can issue its native browser-session cookie. The proxy has no custom login page and maintains no session of its own.
 - **Public static files**: `/manifest.webmanifest` and `/favicon.svg` bypass the gate — browsers fetch them in credential-less contexts (PWA manifest, favicon), so requiring authentication would 401 them. They carry no secrets.
 - Credential comparison is constant-time (`timingSafeEqual`).
 

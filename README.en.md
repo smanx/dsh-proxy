@@ -10,6 +10,7 @@ Supports Basic Auth, LAN access, and `crypto.randomUUID` polyfill injection.
 **Recommended for DSH (DeepSeek Harness) users**: install the proxy as a plugin into the web profile — it **starts and stops with `dsh web`**, no separate process or downloadable binary needed, with a full settings page.
 
 - Same native **Basic Auth** (browser dialog) and full HTTP + WebSocket forwarding as the standalone builds
+- Automatic DSH browser-session exchange after Basic Auth, without manually copying the launch token
 - **Settings page** (DSH settings → LAN Proxy): status lights, start/stop, edit the proxy listen port, username, and password (form pre-fills current values; empty means set blank)
 - Empty credentials by default = password login off; password login turns on only when **both** username and password are set
 

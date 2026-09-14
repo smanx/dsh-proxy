@@ -34,6 +34,7 @@ function baseOptions(upstreamPort: number): EffectiveProxyOptions {
     listenPort: 0,
     upstreamHost: '127.0.0.1',
     upstreamPort,
+    upstreamToken: '',
     username: 'admin',
     password: 'admin',
   }

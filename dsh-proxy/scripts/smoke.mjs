@@ -9,6 +9,7 @@
  * Usage: pnpm run smoke   (requires the web app on 127.0.0.1:3080)
  */
 import net from 'node:net'
+import http from 'node:http'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -164,18 +165,22 @@ async function pluginContractPhase() {
 
   const tempHome = mkdtempSync(join(tmpdir(), 'dsh-proxy-smoke-'))
   process.env.DSH_HOME = tempHome
+  let routeServer = null
   try {
     let registered = null
     const effectFns = []
     const fakeCtx = {
-      webServer: { port: UPSTREAM, host: '127.0.0.1' },
-      connection: {
-        rpc: {
-          handle: (channel, handler, options) => {
-            registered = { channel, handler, options }
-            return async () => {}
-          },
+      webServer: {
+        port: UPSTREAM,
+        host: '127.0.0.1',
+        register: (route) => {
+          registered = route
+          return () => { registered = null }
         },
+      },
+      connection: {
+        authenticatedUrl: (baseUrl) => `${baseUrl}/?token=smoke-token`,
+        requestRejection: () => undefined,
       },
       logger: {
         info: (message) => console.log(`  [plugin:info] ${message}`),
@@ -186,16 +191,29 @@ async function pluginContractPhase() {
         effectFns.push(fn)
         return () => {}
       },
+      inject: (_services, callback) => callback(fakeCtx),
     }
-    plugin.apply(fakeCtx, { listenHost: '127.0.0.1', listenPort: 0 })
+    await plugin.apply(fakeCtx, { listenHost: '127.0.0.1', listenPort: 0 })
     const proxyDisposer = await effectFns[0]()
-    const rpcCleanup = effectFns[1]()
     check(
-      'RPC channel registered as /dsh-proxy with loopback authority',
-      registered?.channel === '/dsh-proxy' && registered?.options?.authority === 'loopback',
+      'RPC route registered as /dsh-proxy prefix',
+      registered?.kind === 'prefix' && registered?.path === '/dsh-proxy',
     )
 
-    const status1 = await registered.handler('status', undefined, new AbortController().signal)
+    // 用真实 HTTP 请求驱动已构建插件的 RPC 路由，覆盖浏览器实际发送的信封。
+    routeServer = http.createServer((req, res) => registered?.handler(req, res))
+    await new Promise((resolve) => routeServer.listen(0, '127.0.0.1', resolve))
+    const routePort = routeServer.address().port
+    const rpc = async (method, payload) => {
+      const response = await fetch(`http://127.0.0.1:${routePort}/dsh-proxy/${method}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'client-request', rpcId: `smoke-${method}`, method, payload }),
+      })
+      return (await response.json()).result
+    }
+
+    const status1 = await rpc('status', undefined)
     check(
       'RPC status returns ok with a bound port and green lights',
       status1?.ok === true
@@ -206,10 +224,9 @@ async function pluginContractPhase() {
       JSON.stringify(status1),
     )
 
-    const updated = await registered.handler(
+    const updated = await rpc(
       'update',
       { username: 'smoke-user', password: 'smoke-pass' },
-      new AbortController().signal,
     )
     check(
       'RPC update rotates credentials and restarts',
@@ -217,7 +234,7 @@ async function pluginContractPhase() {
       JSON.stringify(updated),
     )
 
-    const status2 = await registered.handler('status', undefined, new AbortController().signal)
+    const status2 = await rpc('status', undefined)
     check(
       'status reflects the new username and persisted flag',
       status2?.ok === true && status2.value?.username === 'smoke-user' && status2.value?.persisted === true,
@@ -229,30 +246,28 @@ async function pluginContractPhase() {
       persisted.username === 'smoke-user' && persisted.password === 'smoke-pass',
     )
 
-    const conflict = await registered.handler(
+    const conflict = await rpc(
       'update',
       { listenPort: status2.value.upstreamPort },
-      new AbortController().signal,
     )
     check('listen port equal to the default service port rejected', conflict?.ok === false, JSON.stringify(conflict))
 
-    const cleared = await registered.handler(
+    const cleared = await rpc(
       'update',
       { username: '', password: '' },
-      new AbortController().signal,
     )
     check(
       'clearing credentials disables password login (set-empty semantics)',
       cleared?.ok === true && cleared.value?.status?.authEnabled === false && cleared.value?.status?.password === '',
       JSON.stringify(cleared),
     )
-    const reopened = await registered.handler('update', { username: 'smoke-user', password: 'smoke-pass' }, new AbortController().signal)
+    const reopened = await rpc('update', { username: 'smoke-user', password: 'smoke-pass' })
     check(
       're-setting both credentials re-enables password login',
       reopened?.ok === true && reopened.value?.status?.authEnabled === true,
     )
 
-    const stopped = await registered.handler('stop', {}, new AbortController().signal)
+    const stopped = await rpc('stop', {})
     check(
       'RPC stop answers with the proxy stopped',
       stopped?.ok === true && stopped.value?.proxyListening === false,
@@ -260,16 +275,19 @@ async function pluginContractPhase() {
     )
     // Let the deferred listener close, then bring it back up.
     await new Promise((resolve) => setTimeout(resolve, 400))
-    const started = await registered.handler('start', {}, new AbortController().signal)
+    const started = await rpc('start', {})
     check(
       'RPC start brings the proxy back up',
       started?.ok === true && started.value?.proxyListening === true,
       JSON.stringify(started),
     )
 
-    rpcCleanup()
     await proxyDisposer()
   } finally {
+    if (routeServer !== null) {
+      routeServer.closeAllConnections()
+      await new Promise((resolve) => routeServer.close(() => resolve()))
+    }
     delete process.env.DSH_HOME
     rmSync(tempHome, { recursive: true, force: true })
   }

@@ -3,9 +3,9 @@
 DSH 插件：把 DeepSeek Harness Web 界面（默认 `127.0.0.1:3080`）转发到**另一个带认证的端口**，让同一局域网内的其他设备也能安全访问。
 
 - **HTTP + WebSocket 全协议转发**：任务状态、日志等实时推送不失效
-- **原生 Basic Auth（默认关闭）**：与独立版 dsh-proxy 一致，使用**浏览器自带的认证弹窗**，没有自绘登录页、没有会话 Cookie——默认用户名与密码均为空，局域网**开放访问**；在设置页**同时设置**用户名和密码后启用，外部访问时浏览器弹出原生 Basic Auth 登录框，成功后浏览器缓存凭据自动登录（含 WebSocket 握手）
+- **原生 Basic Auth（默认关闭）**：与独立版 dsh-proxy 一致，使用**浏览器自带的认证弹窗**，没有自绘登录页；默认用户名与密码均为空，局域网**开放访问**；在设置页**同时设置**用户名和密码后启用，外部访问时浏览器弹出原生 Basic Auth 登录框，成功后浏览器缓存凭据自动登录（含 WebSocket 握手）
 - **设置页面**：DSH 设置 → 「局域网代理」，显示监听端口/默认服务端口/**密码登录是否启用**，可修改代理监听端口、用户名、密码，可**启动/停止**代理，保存后自动重启转发服务（持久化到 `$DSH_HOME/dsh-proxy.json`）
-- **开箱即通的兼容修复**：`Host`/`Origin` 改写（通过 DSH `/api` 同源信任篱笆，LAN 访问不 403）、`crypto.randomUUID` polyfill 注入（LAN 非安全上下文下前端 RPC 可用）
+- **开箱即通的兼容修复**：`Host`/`Origin` 改写（通过 DSH `/api` 同源信任篱笆，LAN 访问不 403）、Basic Auth 后自动兑换 DSH 浏览器会话、`crypto.randomUUID` polyfill 注入（LAN 非安全上下文下前端 RPC 可用）
 - **随 `dsh web` 启停**：无需单独进程，配置改在 profile 的 `cordis.patch.yml`
 
 > 为什么需要它：DSH Web 服务端**故意拒绝** `--host 0.0.0.0`（避免把 RCE 直接暴露到网络），本插件是官方认可的"出网"方式——独立监听端口 + 认证 + 反代回 loopback。
@@ -86,7 +86,7 @@ pnpm run smoke   # 对正在运行的 DSH（127.0.0.1:3080）做全流程冒烟�
 ## 认证细节
 
 - **启用条件**：`username` 与 `password` **同时非空**才启用密码登录（默认均为空 = 开放访问）；只设置其一仍保持关闭。
-- **认证方式**：HTTP Basic Auth，浏览器原生弹窗——未认证的**任何**请求（页面、`/api/*`、脚本）→ **401 + `WWW-Authenticate: Basic realm="dsh-proxy"`**；WebSocket 拒绝同样带挑战头。登录成功后浏览器按站点缓存凭据，后续请求（含 WS 握手）自动携带。**没有自绘登录页、没有会话 Cookie。**
+- **认证方式**：HTTP Basic Auth，浏览器原生弹窗——未认证的**任何**请求（页面、`/api/*`、脚本）→ **401 + `WWW-Authenticate: Basic realm="dsh-proxy"`**；WebSocket 拒绝同样带挑战头。登录成功后浏览器按站点缓存凭据，代理仅在首次根页面请求中向本机上游提交 DSH 启动令牌，使 DSH 签发其原生浏览器会话 Cookie；代理自身不维护登录会话。
 - **公开静态文件**：`/manifest.webmanifest` 与 `/favicon.svg` 免认证——浏览器会在不带凭据的上下文（PWA 清单、图标）拉取它们，强制认证会 401。
 - 凭据比较用常量时间（`timingSafeEqual`）。
 
