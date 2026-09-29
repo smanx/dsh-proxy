@@ -170,11 +170,13 @@ async function pluginContractPhase() {
     const fakeCtx = {
       webServer: { port: UPSTREAM, host: '127.0.0.1' },
       connection: {
-        rpc: {
-          handle: (channel, handler, options) => {
-            registered = { channel, handler, options }
-            return async () => {}
-          },
+        // DSH 0.1.7's Connection service derives the route owner from its OWN
+        // (webServer-less) context inside `rpc.handle`, which cannot mount the
+        // physical route. The plugin calls `register(owner, ...)` with its own
+        // context instead; the fake mirrors that surface.
+        register: (owner, channel, handler) => {
+          registered = { owner, channel, handler }
+          return async () => {}
         },
       },
       logger: {
@@ -191,8 +193,10 @@ async function pluginContractPhase() {
     const proxyDisposer = await effectFns[0]()
     const rpcCleanup = effectFns[1]()
     check(
-      'RPC channel registered as /dsh-proxy with loopback authority',
-      registered?.channel === '/dsh-proxy' && registered?.options?.authority === 'loopback',
+      'RPC channel registered as /dsh-proxy, owned by the plugin context (webServer reachable)',
+      registered?.channel === '/dsh-proxy'
+        && registered?.owner === fakeCtx
+        && registered?.owner?.webServer !== undefined,
     )
 
     const status1 = await registered.handler('status', undefined, new AbortController().signal)

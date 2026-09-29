@@ -15,8 +15,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 // Type-only: merges `ctx.webServer` into the Context type.
 import type {} from '@deepseek-ai/dsh-host-webserver'
-// Type-only: merges `ctx.connection` (host Connection RPC registry).
-import type {} from '@deepseek-ai/dsh-client-connection'
+// Type-only: merges `ctx.connection` (host Connection RPC registry) and names
+// the decoded-endpoint handler the channel registration accepts.
+import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { ProxyController } from './controller.ts'
 import { RPC_CHANNEL, RPC_START_ENDPOINT, RPC_STATUS_ENDPOINT, RPC_STOP_ENDPOINT, RPC_UPDATE_ENDPOINT } from './contract.ts'
@@ -59,6 +60,25 @@ export const Config = z.object({
 })
 
 /**
+ * The Connection host service's channel registrar.
+ *
+ * DSH 0.1.7 moved Connection's `webServer` dependency behind a nested
+ * `ctx.inject(['webServer'], ...)`, so the service's own context no longer
+ * resolves `webServer`. `ctx.connection.rpc.handle` derives the route owner
+ * from exactly that context, then mounts the channel's physical route through
+ * `owner.webServer` — which throws `cannot get property "webServer" without
+ * inject` and aborts the whole plugin load.
+ *
+ * `HostConnectionService.register` takes the owning context explicitly, so
+ * passing this plugin's own context (which injects `webServer`) mounts the
+ * route on a context that can resolve it. The method is not part of the public
+ * `HostConnectionHandle` face, hence the local shape.
+ */
+interface ConnectionChannelRegistrar {
+  register(owner: Context, channel: string, handler: ConnectionRpcHandler): () => void
+}
+
+/**
  * Mount the proxy and the RPC channel as effects on this plugin's fiber:
  * unloading the plugin closes the listener, every upgraded socket, and the
  * channel.
@@ -91,54 +111,49 @@ export function apply(ctx: Context, config?: Config): void {
     'dsh-proxy.proxy',
   )
 
+  const connection = ctx.connection as unknown as ConnectionChannelRegistrar
+
   ctx.effect(
     () => {
-      const dispose = ctx.connection.rpc.handle(
-        RPC_CHANNEL,
-        async (endpoint, payload) => {
-          if (endpoint === RPC_STATUS_ENDPOINT) {
-            return { ok: true, value: await controller.refreshStatus() }
-          }
-          if (endpoint === RPC_START_ENDPOINT) {
-            const outcome = await controller.start()
-            if (!outcome.ok) {
-              // The listener did not bind (e.g. the port is taken): answer with
-              // the real reason so the settings page reports it instead of
-              // claiming the proxy started.
-              return {
-                ok: false,
-                error: { code: 'bad-request', message: outcome.message, details: { issues: [] } },
-              }
-            }
-            return { ok: true, value: await controller.refreshStatus() }
-          }
-          if (endpoint === RPC_STOP_ENDPOINT) {
-            // Answered before the listener closes so the response survives
-            // when the caller is connected through the proxy.
-            return { ok: true, value: controller.stopDeferred() }
-          }
-          if (endpoint === RPC_UPDATE_ENDPOINT) {
-            const outcome = await controller.update(payload)
-            if (outcome.ok) return { ok: true, value: outcome.result }
+      const dispose = connection.register(ctx, RPC_CHANNEL, async (endpoint, payload) => {
+        if (endpoint === RPC_STATUS_ENDPOINT) {
+          return { ok: true, value: await controller.refreshStatus() }
+        }
+        if (endpoint === RPC_START_ENDPOINT) {
+          const outcome = await controller.start()
+          if (!outcome.ok) {
+            // The listener did not bind (e.g. the port is taken): answer with
+            // the real reason so the settings page reports it instead of
+            // claiming the proxy started.
             return {
               ok: false,
               error: { code: 'bad-request', message: outcome.message, details: { issues: [] } },
             }
           }
+          return { ok: true, value: await controller.refreshStatus() }
+        }
+        if (endpoint === RPC_STOP_ENDPOINT) {
+          // Answered before the listener closes so the response survives
+          // when the caller is connected through the proxy.
+          return { ok: true, value: controller.stopDeferred() }
+        }
+        if (endpoint === RPC_UPDATE_ENDPOINT) {
+          const outcome = await controller.update(payload)
+          if (outcome.ok) return { ok: true, value: outcome.result }
           return {
             ok: false,
-            error: {
-              code: 'bad-request',
-              message: `unknown endpoint ${JSON.stringify(endpoint)}`,
-              details: { issues: [] },
-            },
+            error: { code: 'bad-request', message: outcome.message, details: { issues: [] } },
           }
-        },
-        // The channel is loopback-only: through the proxy (Host rewritten to
-        // loopback) and direct loopback both pass; nothing else may mutate
-        // the proxy's credentials.
-        { authority: 'loopback' },
-      )
+        }
+        return {
+          ok: false,
+          error: {
+            code: 'bad-request',
+            message: `unknown endpoint ${JSON.stringify(endpoint)}`,
+            details: { issues: [] },
+          },
+        }
+      })
       return () => void dispose()
     },
     'dsh-proxy.rpc',

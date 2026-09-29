@@ -35,21 +35,21 @@ export interface Config {
     password: string;
 }
 /** Configuration schema; deployment-varying bounds stay tunable from cordis.yml. */
-export declare const Config: z<Schemastery.ObjectS<{
-    listenHost: z<string, string>;
-    listenPort: z<number, number>;
-    upstreamHost: z<string, string>;
-    upstreamPort: z<number, number>;
-    username: z<string, string>;
-    password: z<string, string>;
-}>, Schemastery.ObjectT<{
-    listenHost: z<string, string>;
-    listenPort: z<number, number>;
-    upstreamHost: z<string, string>;
-    upstreamPort: z<number, number>;
-    username: z<string, string>;
-    password: z<string, string>;
-}>>;
+export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+    listenHost: z<string, string, "defined">;
+    listenPort: z<number, number, "defined">;
+    upstreamHost: z<string, string, "defined">;
+    upstreamPort: z<number, number, "defined">;
+    username: z<string, string, "defined">;
+    password: z<string, string, "defined">;
+}>>, Schemastery.ObjectT<NoInfer<{
+    listenHost: z<string, string, "defined">;
+    listenPort: z<number, number, "defined">;
+    upstreamHost: z<string, string, "defined">;
+    upstreamPort: z<number, number, "defined">;
+    username: z<string, string, "defined">;
+    password: z<string, string, "defined">;
+}>>, "plain">;
 /**
  * Mount the proxy and the RPC channel as effects on this plugin's fiber:
  * unloading the plugin closes the listener, every upgraded socket, and the
