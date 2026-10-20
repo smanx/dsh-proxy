@@ -10,8 +10,9 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
 **推荐 DSH（DeepSeek Harness）用户使用**：把代理作为插件装进 web profile，**随 `dsh web` 启停**，无需单独进程、无需下载可执行文件，带完整设置页面。
 
 - 与独立版相同的原生 **Basic Auth**（浏览器弹窗）与 HTTP + WebSocket 全协议转发
-- **设置页面**（DSH 设置 → 局域网代理）：状态红绿灯、启动/停止、改代理监听端口与用户名密码（表单回写当前值，留空即设为空）
+- **设置页面**（DSH 设置 → 局域网代理）：状态红绿灯、启动/停止、改代理监听端口、用户名密码与免 token 登录开关（表单回写当前值，留空即设为空）
 - 默认空凭据 = 密码登录关闭；**同时设置**用户名和密码才启用
+- 可选的**免 token 首次访问**（`skipLaunchToken`，默认关闭）：由代理代替浏览器完成 DSH 启动 token→cookie 兑换，无需任何人粘贴 token——因为它会移除 DSH 自身的 token 校验，请与用户名密码搭配使用
 
 <p align="center">
   <img src="doc/image-zh.png" alt="dsh-proxy 设置页面（中文界面）" width="720" />
