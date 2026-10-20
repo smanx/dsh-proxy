@@ -11,6 +11,13 @@ export interface LanProxyOptions {
     username: string;
     /** Basic Auth password; password login is enabled only when both it and `username` are set. */
     password: string;
+    /**
+     * DSH launch token. When present, any request the upstream rejects with 401
+     * is retried once with `?token=...` appended, letting a first-time browser
+     * obtain the signed cookie without being handed the token. Omit it to keep
+     * DSH's token check fully in force (the default).
+     */
+    launchToken?: string;
     /** Optional sink for human-readable lifecycle messages. */
     log?: (level: 'info' | 'warn' | 'error', message: string) => void;
 }

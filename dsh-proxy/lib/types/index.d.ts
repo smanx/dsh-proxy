@@ -33,6 +33,8 @@ export interface Config {
     username: string;
     /** Login / Basic Auth password; password login is enabled only when both it and `username` are set. */
     password: string;
+    /** Auto-attach the launch token on 401 (off by default). */
+    skipLaunchToken: boolean;
 }
 /** Configuration schema; deployment-varying bounds stay tunable from cordis.yml. */
 export declare const Config: z<Schemastery.ObjectS<NoInfer<{
@@ -42,6 +44,14 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     upstreamPort: z<number, number, "defined">;
     username: z<string, string, "defined">;
     password: z<string, string, "defined">;
+    /**
+     * Auto-attach the DSH launch token to requests the upstream rejects with
+     * 401, so a first-time LAN browser completes the token→cookie exchange
+     * without being handed the token. OFF by default: enabling it removes
+     * DSH's token check for the proxied surface, leaving the proxy's Basic Auth
+     * (if configured) as the only barrier.
+     */
+    skipLaunchToken: z<boolean, boolean, "defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
     listenHost: z<string, string, "defined">;
     listenPort: z<number, number, "defined">;
@@ -49,6 +59,14 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     upstreamPort: z<number, number, "defined">;
     username: z<string, string, "defined">;
     password: z<string, string, "defined">;
+    /**
+     * Auto-attach the DSH launch token to requests the upstream rejects with
+     * 401, so a first-time LAN browser completes the token→cookie exchange
+     * without being handed the token. OFF by default: enabling it removes
+     * DSH's token check for the proxied surface, leaving the proxy's Basic Auth
+     * (if configured) as the only barrier.
+     */
+    skipLaunchToken: z<boolean, boolean, "defined">;
 }>>, "plain">;
 /**
  * Mount the proxy and the RPC channel as effects on this plugin's fiber:

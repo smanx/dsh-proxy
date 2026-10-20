@@ -357,3 +357,67 @@ describe('ProxyController start/stop controls', () => {
 function basic(username: string, password: string): string {
   return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
 }
+
+describe('ProxyController launch-token auto-login', () => {
+  it('reads the token from the host when auto-login is on', async () => {
+    const upstreamPort = await startUpstream('A')
+    const reads: string[] = []
+    controller = new ProxyController({
+      base: { ...baseOptions(upstreamPort), skipLaunchToken: true },
+      settingsFile: tempSettingsFile(),
+      log: () => {},
+      readLaunchToken: () => {
+        reads.push('called')
+        return 'launch-token-xyz'
+      },
+    })
+    await controller.start()
+    expect(reads).toEqual(['called'])
+    expect(controller.status().skipLaunchToken).toBe(true)
+  })
+
+  it('does not read the token when auto-login is off', async () => {
+    const upstreamPort = await startUpstream('A')
+    const reads: string[] = []
+    controller = new ProxyController({
+      base: baseOptions(upstreamPort),
+      settingsFile: tempSettingsFile(),
+      log: () => {},
+      readLaunchToken: () => {
+        reads.push('called')
+        return 'launch-token-xyz'
+      },
+    })
+    await controller.start()
+    expect(reads).toEqual([])
+    expect(controller.status().skipLaunchToken).toBe(false)
+  })
+
+  it('warns and keeps the surface token-gated when the host supplies no token', async () => {
+    const upstreamPort = await startUpstream('A')
+    controller = new ProxyController({
+      base: { ...baseOptions(upstreamPort), skipLaunchToken: true },
+      settingsFile: tempSettingsFile(),
+      log: (level, message) => logs.push(`${level}:${message}`),
+      readLaunchToken: () => undefined,
+    })
+    await controller.start()
+    expect(logs.some((entry) => entry.startsWith('warn:') && entry.includes('no launch token'))).toBe(true)
+  })
+
+  it('turning auto-login off drops the cached token', async () => {
+    const upstreamPort = await startUpstream('A')
+    controller = new ProxyController({
+      base: baseOptions(upstreamPort),
+      settingsFile: tempSettingsFile(),
+      log: () => {},
+      readLaunchToken: () => 'launch-token-xyz',
+    })
+    await controller.start()
+    const on = await controller.update({ skipLaunchToken: true })
+    expect(on.ok).toBe(true)
+    const off = await controller.update({ skipLaunchToken: false })
+    expect(off.ok).toBe(true)
+    expect(controller.status().skipLaunchToken).toBe(false)
+  })
+})

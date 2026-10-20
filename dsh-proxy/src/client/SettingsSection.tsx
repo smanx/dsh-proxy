@@ -101,6 +101,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
   const [listenPort, setListenPort] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [skipLaunchToken, setSkipLaunchToken] = useState(false)
   // Ref (not state): the form is seeded from the first successful status
   // load only; a state dependency here would re-run the load effect.
   const formSeededRef = useRef(false)
@@ -115,6 +116,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
     setListenPort(String(next.listenPort))
     setUsername(next.username)
     setPassword(next.password ?? '')
+    setSkipLaunchToken(next.skipLaunchToken)
   }, [])
 
   /** Fetch the current proxy status; every outcome is rendered, never thrown. */
@@ -212,6 +214,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
         listenPort: port,
         username: username.trim(),
         password,
+        skipLaunchToken,
       }
       const result = await rpc.call(RPC_CHANNEL, RPC_UPDATE_ENDPOINT, payload)
       if (result.ok) {
@@ -267,6 +270,7 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
       />
       <StatusRow label={t('status.username')} value={status.username} />
       <StatusRow label={t('status.auth')} value={authBadge} />
+      <StatusRow label={t('status.skipToken')} value={status.skipLaunchToken ? t('status.skipTokenOn') : t('status.skipTokenOff')} />
       <p className="dsh_lanproxy_hint">
         {status.persisted ? t('status.persistedOn') : t('status.persistedOff')}
       </p>
@@ -364,6 +368,20 @@ export function SettingsSection({ rpc, t }: SettingsSectionProps) {
               {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </div>
+        </div>
+
+        <div className="dsh_lanproxy_field">
+          <div className="dsh_lanproxy_checkRow">
+            <input
+              id="dsh-lanproxy-skip-token"
+              className="dsh_lanproxy_checkbox"
+              type="checkbox"
+              checked={skipLaunchToken}
+              onChange={(event) => { setSkipLaunchToken(event.target.checked) }}
+            />
+            <label className="dsh_lanproxy_fieldLabel" htmlFor="dsh-lanproxy-skip-token">{t('form.skipToken')}</label>
+          </div>
+          <p className="dsh_lanproxy_fieldHint">{t('form.skipTokenHint')}</p>
         </div>
 
         <div className="dsh_lanproxy_actions">

@@ -161,6 +161,24 @@ export const cssText = `
   color: var(--dsw-alias-label-tertiary, #8b949e);
   font-size: 12px;
   line-height: 18px;
+  margin: 4px 0 0;
+}
+/* Checkbox row for the token-free-login toggle. */
+.dsh_lanproxy_checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dsh_lanproxy_checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--dsw-alias-accent, #2f81f7);
+  cursor: pointer;
+  flex: none;
+}
+.dsh_lanproxy_checkRow .dsh_lanproxy_fieldLabel {
+  cursor: pointer;
 }
 .dsh_lanproxy_input {
   box-sizing: border-box;

@@ -28,6 +28,14 @@
  * traffic as loopback to the server-side fence, so withholding only the
  * client-side alignment would leave the UI degraded while the wire stayed
  * fully open. Basic Auth remains the one security barrier for the surface.
+ *
+ * A fifth, OPT-IN fix (dsh 0.2.x) covers the launch-token gate DSH added on
+ * top of the cookie: a first-time browser has no token, so the index answers
+ * `401 dsh web authentication required` and the device is locked out. When the
+ * caller supplies the host's launch token, the proxy re-issues any 401 once
+ * with `?token=...`, which is exactly the exchange a browser would perform by
+ * hand: DSH mints the signed cookie and the retried response carries it back.
+ * Off by default — see tokenretry.ts for the security consequence.
  */
 import http from 'node:http'
 import type { Duplex } from 'node:stream'
@@ -38,6 +46,7 @@ import { Authenticator } from './session.ts'
 import { injectPolyfill, RANDOM_UUID_POLYFILL } from './polyfill.ts'
 import { isJavaScriptContentType, patchClientScript } from './clientpatch.ts'
 import { attachBodyTransform } from './compression.ts'
+import { LaunchTokenAutoLogin } from './tokenretry.ts'
 
 export interface LanProxyOptions {
   /** Interface the proxy binds (0.0.0.0 for LAN access). */
@@ -52,6 +61,13 @@ export interface LanProxyOptions {
   username: string
   /** Basic Auth password; password login is enabled only when both it and `username` are set. */
   password: string
+  /**
+   * DSH launch token. When present, any request the upstream rejects with 401
+   * is retried once with `?token=...` appended, letting a first-time browser
+   * obtain the signed cookie without being handed the token. Omit it to keep
+   * DSH's token check fully in force (the default).
+   */
+  launchToken?: string
   /** Optional sink for human-readable lifecycle messages. */
   log?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
@@ -95,6 +111,7 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     upstreamPort,
     username,
     password,
+    launchToken,
     log = () => {},
   } = options
   const targetOrigin = `http://${upstreamHost}:${upstreamPort}`
@@ -115,6 +132,38 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
         /* socket already gone */
       }
     }
+  })
+
+  // Launch-token exchange (opt-in, DSH 0.2.x). DSH gates its whole web surface
+  // behind a per-process launch token: a navigation without the token gets
+  // `401 dsh web authentication required`, and only `GET /?token=...` can turn
+  // that token into a signed cookie. A first-time LAN device therefore has no
+  // way in — it never saw the token `dsh web` printed at startup.
+  //
+  // The fix is a single upstream probe the proxy performs BEFORE forwarding the
+  // client's own request. The probe reuses the client's exact method, path and
+  // headers, so whatever DSH answers is what the client would have received:
+  //   - 200/303/404/... → forward the client's request untouched (streaming,
+  //     no buffering) — this is the normal path and costs nothing extra.
+  //   - 401 → the client has no credential. Append `?token=...` and forward
+  //     the client's request; DSH mints the cookie and redirects to `./`, so
+  //     the browser lands on the app and keeps the cookie for later requests.
+  //
+  // Why a probe instead of retrying inside `proxyRes`: http-proxy 1.18 emits
+  // `proxyRes` BEFORE it copies the status/headers to `res` and pipes the body,
+  // so a retry issued from that handler would still ship the 401 to the browser
+  // and then write a second response over a finished socket. Probing keeps the
+  // decision entirely on the proxy's side of the wire.
+  //
+  // The probe is skipped when the request already carries a credential (a
+  // `dsh-auth-*` cookie or a `token` query param), when it is not a GET, or
+  // when the upstream is unreachable — in every such case the request simply
+  // flows through as it would without this feature.
+  const autoLogin = new LaunchTokenAutoLogin({
+    upstreamHost,
+    upstreamPort,
+    launchToken,
+    log,
   })
 
   // Inject the randomUUID polyfill into proxied HTML documents, and rewrite
@@ -138,11 +187,11 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
       if (isHtml) {
         return Buffer.from(injectPolyfill(text, RANDOM_UUID_POLYFILL))
       }
-      // JS: rewrite the loopback-trust needles (applied unconditionally — the
-      // Host/Origin rewrite already lets the server-side fence treat proxied
-      // traffic as loopback, so withholding only the client-side alignment
-      // would leave the UI degraded). Nothing matched means no rewrite needed:
-      // return null to passthrough without recompressing.
+      // JS: rewrite the loopback-trust needles (applied unconditionally
+      // the Host/Origin rewrite already lets the server-side fence treat
+      // proxied traffic as loopback, so withholding only the client-side
+      // alignment would leave the UI degraded). Nothing matched means no
+      // rewrite needed: return null to passthrough without recompressing.
       const { code, matched } = patchClientScript(text)
       if (matched.length > 0) {
         log('info', `loopback-trust patch applied: ${matched.join(', ')}`)
@@ -183,6 +232,15 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
     }
     if (!auth.isAuthenticated(req.headers.authorization)) {
       challenge(res)
+      return
+    }
+    // With launch-token auto-login off (the default) this is a no-op that
+    // returns immediately, so the feature costs one property read per request.
+    if (autoLogin.enabled) {
+      void autoLogin.grant(req).then(() => {
+        alignOrigin(req)
+        proxy.web(req, res)
+      })
       return
     }
     alignOrigin(req)

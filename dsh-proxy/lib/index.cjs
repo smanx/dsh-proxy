@@ -903,7 +903,7 @@ var require_follow_redirects = __commonJS({
   "node_modules/.pnpm/follow-redirects@1.16.0/node_modules/follow-redirects/index.js"(exports2, module2) {
     var url = require("url");
     var URL2 = url.URL;
-    var http2 = require("http");
+    var http3 = require("http");
     var https = require("https");
     var Writable = require("stream").Writable;
     var assert = require("assert");
@@ -1404,7 +1404,7 @@ var require_follow_redirects = __commonJS({
     function escapeRegex(regex) {
       return regex.replace(/[\]\\/()*+?.$]/g, "\\$&");
     }
-    module2.exports = wrap({ http: http2, https });
+    module2.exports = wrap({ http: http3, https });
     module2.exports.wrap = wrap;
   }
 });
@@ -1487,10 +1487,10 @@ var require_web_incoming = __commonJS({
       stream: function stream(req, res, options, _, server, clb) {
         server.emit("start", req, res, options.target || options.forward);
         var agents = options.followRedirects ? followRedirects : nativeAgents;
-        var http2 = agents.http;
+        var http3 = agents.http;
         var https = agents.https;
         if (options.forward) {
-          var forwardReq = (options.forward.protocol === "https:" ? https : http2).request(
+          var forwardReq = (options.forward.protocol === "https:" ? https : http3).request(
             common.setupOutgoing(options.ssl || {}, options, req, "forward")
           );
           var forwardError = createErrorHandler(forwardReq, options.forward);
@@ -1501,7 +1501,7 @@ var require_web_incoming = __commonJS({
             return res.end();
           }
         }
-        var proxyReq = (options.target.protocol === "https:" ? https : http2).request(
+        var proxyReq = (options.target.protocol === "https:" ? https : http3).request(
           common.setupOutgoing(options.ssl || {}, options, req)
         );
         proxyReq.on("socket", function(socket) {
@@ -1562,7 +1562,7 @@ var require_web_incoming = __commonJS({
 // node_modules/.pnpm/http-proxy@1.18.1/node_modules/http-proxy/lib/http-proxy/passes/ws-incoming.js
 var require_ws_incoming = __commonJS({
   "node_modules/.pnpm/http-proxy@1.18.1/node_modules/http-proxy/lib/http-proxy/passes/ws-incoming.js"(exports2, module2) {
-    var http2 = require("http");
+    var http3 = require("http");
     var https = require("https");
     var common = require_common();
     module2.exports = {
@@ -1631,7 +1631,7 @@ var require_ws_incoming = __commonJS({
         };
         common.setupSocket(socket);
         if (head && head.length) socket.unshift(head);
-        var proxyReq = (common.isSSL.test(options.target.protocol) ? https : http2).request(
+        var proxyReq = (common.isSSL.test(options.target.protocol) ? https : http3).request(
           common.setupOutgoing(options.ssl || {}, options, req)
         );
         if (server) {
@@ -1680,7 +1680,7 @@ var require_http_proxy = __commonJS({
     var extend2 = require("util")._extend;
     var parse_url = require("url").parse;
     var EE3 = require_eventemitter3();
-    var http2 = require("http");
+    var http3 = require("http");
     var https = require("https");
     var web = require_web_incoming();
     var ws = require_ws_incoming();
@@ -1743,7 +1743,7 @@ var require_http_proxy = __commonJS({
       var self = this, closure = function(req, res) {
         self.web(req, res);
       };
-      this._server = this.options.ssl ? https.createServer(this.options.ssl, closure) : http2.createServer(closure);
+      this._server = this.options.ssl ? https.createServer(this.options.ssl, closure) : http3.createServer(closure);
       if (this.options.ws) {
         this._server.on("upgrade", function(req, socket, head) {
           self.ws(req, socket, head);
@@ -2689,7 +2689,7 @@ defineMethod("transform", [
   "preserve"
 ], ({ inner }, isInner) => inner.toString(isInner));
 
-// node_modules/.pnpm/@deepseek-ai+dsh-home-paths_f1763734af4cf16a3b16d81f3566007e/node_modules/@deepseek-ai/dsh-home-paths/lib/index.js
+// node_modules/.pnpm/@deepseek-ai+dsh-home-paths@0.1.7-rc.2_@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/dsh-home-paths/lib/index.js
 var import_node_os = require("node:os");
 var import_node_path = require("node:path");
 var DSH_HOME_DIR_NAME = ".dsh";
@@ -2712,7 +2712,7 @@ function dshHomePath(...segments) {
 }
 
 // src/proxy.ts
-var import_node_http = __toESM(require("node:http"), 1);
+var import_node_http2 = __toESM(require("node:http"), 1);
 var import_node_os2 = __toESM(require("node:os"), 1);
 var import_http_proxy = __toESM(require_http_proxy3(), 1);
 
@@ -2885,6 +2885,94 @@ function attachBodyTransform(res, proxyRes, transform) {
   };
 }
 
+// src/tokenretry.ts
+var import_node_http = __toESM(require("node:http"), 1);
+var DSH_COOKIE_PREFIX = "dsh-auth-";
+function isTokenExchangeCandidate(method) {
+  return method === void 0 || method === "GET";
+}
+function hasCredential(req) {
+  const url = new URL(req.url ?? "/", "http://dsh-proxy.local");
+  if (url.searchParams.has("token")) return true;
+  const cookie = req.headers.cookie;
+  if (cookie === void 0) return false;
+  return cookie.split(";").some((entry) => entry.trim().startsWith(`${DSH_COOKIE_PREFIX}`));
+}
+function withToken(url, token) {
+  const parsed = new URL(url, "http://dsh-proxy.local");
+  parsed.searchParams.set("token", token);
+  return `${parsed.pathname}${parsed.search}`;
+}
+function probeStatus(target, path, headers) {
+  return new Promise((resolve3, reject) => {
+    const req = import_node_http.default.request(
+      {
+        host: target.host,
+        port: target.port,
+        path,
+        method: "GET",
+        // The probe impersonates the client, so it must present the same Host
+        // the forwarded request will — otherwise DSH would evaluate a
+        // different authority than the one the real request uses.
+        headers
+      },
+      (res) => {
+        res.resume();
+        resolve3(res.statusCode ?? 0);
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+var LaunchTokenAutoLogin = class {
+  target;
+  token;
+  log;
+  constructor(options) {
+    this.target = { host: options.upstreamHost, port: options.upstreamPort };
+    this.token = options.launchToken ?? "";
+    this.log = options.log;
+  }
+  /** True when a token was supplied and the feature can act. */
+  get enabled() {
+    return this.token !== "";
+  }
+  /**
+   * Authenticate one client request with the launch token if it needs it.
+   *
+   * Mutates `req.url` in place when the token should ride along, then lets the
+   * caller forward as usual. Never completes a response itself: every failure
+   * mode (no token, non-GET, already credentialed, upstream unreachable,
+   * upstream answered) falls through to a plain forward, so the request is
+   * handled exactly as it would be without this feature.
+   */
+  async grant(req) {
+    if (!this.enabled) return;
+    if (!isTokenExchangeCandidate(req.method)) return;
+    if (hasCredential(req)) return;
+    const url = new URL(req.url ?? "/", "http://dsh-proxy.local");
+    const browserHeaders = { ...req.headers };
+    delete browserHeaders["content-length"];
+    delete browserHeaders["transfer-encoding"];
+    browserHeaders.host = `${this.target.host}:${this.target.port}`;
+    browserHeaders["cache-control"] = "no-cache";
+    browserHeaders.pragma = "no-cache";
+    let status;
+    try {
+      status = await probeStatus(this.target, `${url.pathname}${url.search}`, browserHeaders);
+    } catch {
+      return;
+    }
+    if (status !== 401) return;
+    this.log?.(
+      "info",
+      "launch-token auto-login: upstream answered 401, completing the token exchange on the client\u2019s behalf"
+    );
+    req.url = withToken(req.url ?? "/", this.token);
+  }
+};
+
 // src/proxy.ts
 var AUTH_REALM = "dsh-proxy";
 var PUBLIC_PATHS = /* @__PURE__ */ new Set(["/manifest.webmanifest", "/favicon.svg"]);
@@ -2905,6 +2993,7 @@ function startLanProxy(options) {
     upstreamPort,
     username,
     password,
+    launchToken,
     log = () => {
     }
   } = options;
@@ -2924,6 +3013,12 @@ function startLanProxy(options) {
       } catch {
       }
     }
+  });
+  const autoLogin = new LaunchTokenAutoLogin({
+    upstreamHost,
+    upstreamPort,
+    launchToken,
+    log
   });
   proxy.on("proxyRes", (proxyRes, _req, res) => {
     const contentType = String(proxyRes.headers["content-type"] ?? "");
@@ -2954,7 +3049,7 @@ function startLanProxy(options) {
     });
     res.end("401 Unauthorized");
   };
-  const server = import_node_http.default.createServer((req, res) => {
+  const server = import_node_http2.default.createServer((req, res) => {
     const pathname = new URL(req.url ?? "/", "http://proxy.local").pathname;
     if (PUBLIC_PATHS.has(pathname)) {
       alignOrigin(req);
@@ -2963,6 +3058,13 @@ function startLanProxy(options) {
     }
     if (!auth.isAuthenticated(req.headers.authorization)) {
       challenge(res);
+      return;
+    }
+    if (autoLogin.enabled) {
+      void autoLogin.grant(req).then(() => {
+        alignOrigin(req);
+        proxy.web(req, res);
+      });
       return;
     }
     alignOrigin(req);
@@ -3030,6 +3132,7 @@ function normalizeRuntimeSettings(raw) {
   }
   if (typeof source.username === "string") out.username = source.username;
   if (typeof source.password === "string") out.password = source.password;
+  if (typeof source.skipLaunchToken === "boolean") out.skipLaunchToken = source.skipLaunchToken;
   return out;
 }
 var RuntimeSettingsFile = class {
@@ -3099,7 +3202,13 @@ function validateUpdate(payload, currentListenPort, currentUpstreamPort) {
     }
     patch.password = input.password;
   }
-  if (patch.listenPort === void 0 && patch.upstreamPort === void 0 && patch.username === void 0 && patch.password === void 0) {
+  if (input.skipLaunchToken !== void 0) {
+    if (typeof input.skipLaunchToken !== "boolean") {
+      return { ok: false, message: "\u514D token \u767B\u5F55\u5F00\u5173\u5FC5\u987B\u662F\u5E03\u5C14\u503C" };
+    }
+    patch.skipLaunchToken = input.skipLaunchToken;
+  }
+  if (patch.listenPort === void 0 && patch.upstreamPort === void 0 && patch.username === void 0 && patch.password === void 0 && patch.skipLaunchToken === void 0) {
     return { ok: false, message: "\u6CA1\u6709\u53EF\u4FDD\u5B58\u7684\u4FEE\u6539" };
   }
   return {
@@ -3122,6 +3231,7 @@ var ProxyController = class {
     if (persisted.upstreamPort !== void 0) this.options.upstreamPort = persisted.upstreamPort;
     if (persisted.username !== void 0) this.options.username = persisted.username;
     if (persisted.password !== void 0) this.options.password = persisted.password;
+    if (persisted.skipLaunchToken !== void 0) this.options.skipLaunchToken = persisted.skipLaunchToken;
   }
   opts;
   handle = null;
@@ -3133,7 +3243,7 @@ var ProxyController = class {
   /** Whether a persisted runtime override exists (drives the status flag). */
   persisted() {
     const current = this.settings.read();
-    return current.listenPort !== void 0 || current.upstreamPort !== void 0 || current.username !== void 0 || current.password !== void 0;
+    return current.listenPort !== void 0 || current.upstreamPort !== void 0 || current.username !== void 0 || current.password !== void 0 || current.skipLaunchToken !== void 0;
   }
   /**
    * Start the proxy (idempotent). Listen errors — the port is already taken,
@@ -3144,6 +3254,15 @@ var ProxyController = class {
   async start() {
     if (this.handle !== null) return { ok: true };
     const log = this.log;
+    if (this.options.skipLaunchToken === true && this.opts.readLaunchToken !== void 0) {
+      const token = this.opts.readLaunchToken();
+      if (token === void 0 || token === "") {
+        log("warn", "dsh-proxy: skipLaunchToken is on but the host supplied no launch token; the LAN surface still requires DSH authentication");
+      } else {
+        this.options.launchToken = token;
+        log("info", "dsh-proxy: launch-token auto-login enabled \u2014 a first-time browser is authenticated without the token");
+      }
+    }
     const handle = startLanProxy({
       listenHost: this.options.listenHost,
       listenPort: this.options.listenPort,
@@ -3151,6 +3270,7 @@ var ProxyController = class {
       upstreamPort: this.options.upstreamPort,
       username: this.options.username,
       password: this.options.password,
+      launchToken: this.options.launchToken,
       log
     });
     this.handle = handle;
@@ -3167,6 +3287,9 @@ var ProxyController = class {
         log("warn", "dsh-proxy: password login NOT enabled \u2014 username and password must BOTH be set (only one is configured); the LAN surface is open");
       } else {
         log("warn", "dsh-proxy: password login is disabled (username and password are both empty); the LAN surface is open");
+      }
+      if (this.options.launchToken !== void 0 && this.options.launchToken !== "") {
+        log("info", "dsh-proxy: launch-token auto-login ON \u2014 a first-time browser is authenticated without the token");
       }
       return { ok: true };
     } catch (err) {
@@ -3222,6 +3345,7 @@ var ProxyController = class {
       username: this.options.username,
       password: this.options.password,
       authEnabled: this.options.username !== "" && this.options.password !== "",
+      skipLaunchToken: this.options.skipLaunchToken === true,
       persisted: this.persisted()
     };
   }
@@ -3282,6 +3406,14 @@ var ProxyController = class {
     if (patch.upstreamPort !== void 0) this.options.upstreamPort = patch.upstreamPort;
     if (patch.username !== void 0) this.options.username = patch.username;
     if (patch.password !== void 0) this.options.password = patch.password;
+    if (patch.skipLaunchToken !== void 0) this.options.skipLaunchToken = patch.skipLaunchToken;
+    if (patch.skipLaunchToken === true && this.opts.readLaunchToken !== void 0) {
+      this.options.launchToken = this.opts.readLaunchToken() ?? this.options.launchToken;
+      if (this.options.launchToken === void 0 || this.options.launchToken === "") {
+        this.log("warn", "dsh-proxy: the host supplied no launch token, so auto-login cannot take effect until dsh web restarts");
+      }
+    }
+    if (patch.skipLaunchToken === false) this.options.launchToken = void 0;
     const wasListening = this.boundPort !== null;
     const startOutcome = wasListening ? await this.restart() : null;
     this.probeCache = null;
@@ -3327,13 +3459,34 @@ var Config = Schema.object({
   upstreamHost: Schema.string().default("127.0.0.1"),
   upstreamPort: Schema.natural().max(65535).default(0),
   username: Schema.string().default(""),
-  password: Schema.string().default("")
+  password: Schema.string().default(""),
+  /**
+   * Auto-attach the DSH launch token to requests the upstream rejects with
+   * 401, so a first-time LAN browser completes the token→cookie exchange
+   * without being handed the token. OFF by default: enabling it removes
+   * DSH's token check for the proxied surface, leaving the proxy's Basic Auth
+   * (if configured) as the only barrier.
+   */
+  skipLaunchToken: Schema.boolean().default(false)
 });
+function readLaunchToken(ctx) {
+  try {
+    const connection = ctx.connection;
+    const authenticatedUrl = connection.authenticatedUrl;
+    if (typeof authenticatedUrl !== "function") return void 0;
+    const raw = authenticatedUrl.call(connection, "http://dsh-proxy.local/");
+    const token = new URL(raw).searchParams.get("token");
+    return token === null || token === "" ? void 0 : token;
+  } catch {
+    return void 0;
+  }
+}
 function apply(ctx, config) {
   const resolved = Config(config ?? {});
   const log = (level, message) => {
     ctx.logger[level](message);
   };
+  const readToken = () => readLaunchToken(ctx);
   const controller = new ProxyController({
     base: {
       listenHost: resolved.listenHost,
@@ -3341,10 +3494,12 @@ function apply(ctx, config) {
       upstreamHost: resolved.upstreamHost,
       upstreamPort: resolved.upstreamPort || ctx.webServer.port || 3080,
       username: resolved.username,
-      password: resolved.password
+      password: resolved.password,
+      skipLaunchToken: resolved.skipLaunchToken
     },
     settingsFile: dshHomePath("dsh-proxy.json"),
-    log
+    log,
+    readLaunchToken: readToken
   });
   ctx.effect(
     async () => {

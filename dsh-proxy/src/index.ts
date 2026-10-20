@@ -47,6 +47,8 @@ export interface Config {
   username: string
   /** Login / Basic Auth password; password login is enabled only when both it and `username` are set. */
   password: string
+  /** Auto-attach the launch token on 401 (off by default). */
+  skipLaunchToken: boolean
 }
 
 /** Configuration schema; deployment-varying bounds stay tunable from cordis.yml. */
@@ -57,6 +59,14 @@ export const Config = z.object({
   upstreamPort: z.natural().max(65535).default(0),
   username: z.string().default(''),
   password: z.string().default(''),
+  /**
+   * Auto-attach the DSH launch token to requests the upstream rejects with
+   * 401, so a first-time LAN browser completes the token→cookie exchange
+   * without being handed the token. OFF by default: enabling it removes
+   * DSH's token check for the proxied surface, leaving the proxy's Basic Auth
+   * (if configured) as the only barrier.
+   */
+  skipLaunchToken: z.boolean().default(false),
 })
 
 /**
@@ -79,6 +89,38 @@ interface ConnectionChannelRegistrar {
 }
 
 /**
+ * Read the host's current launch token from the Connection service.
+ *
+ * `authenticatedUrl()` returns the app root with `?token=...` appended — the
+ * same value `dsh web` prints at startup. Reading it here means nothing is
+ * minted, guessed or cached: if DSH restarts and mints a new token, the next
+ * proxy start picks up the new one.
+ *
+ * The call is made ON the service, never on a detached reference: the host
+ * implementation reads `this.browserAuth` internally, so `const f = ctx
+ * .connection.authenticatedUrl` followed by `f()` throws on an unbound `this`.
+ *
+ * @returns the token, or undefined when the service cannot supply one.
+ */
+function readLaunchToken(ctx: Context): string | undefined {
+  try {
+    // Typed structurally because the published `connection` type predates the
+    // method (it arrived with DSH's launch-token gate) and the peer dependency
+    // is intentionally not pinned to the running harness version.
+    const connection = ctx.connection as unknown as {
+      authenticatedUrl?: (url: string) => string
+    }
+    const authenticatedUrl = connection.authenticatedUrl
+    if (typeof authenticatedUrl !== 'function') return undefined
+    const raw = authenticatedUrl.call(connection, 'http://dsh-proxy.local/')
+    const token = new URL(raw).searchParams.get('token')
+    return token === null || token === '' ? undefined : token
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Mount the proxy and the RPC channel as effects on this plugin's fiber:
  * unloading the plugin closes the listener, every upgraded socket, and the
  * channel.
@@ -90,6 +132,16 @@ export function apply(ctx: Context, config?: Config): void {
   const log = (level: 'info' | 'warn' | 'error', message: string): void => {
     ctx.logger[level](message)
   }
+  /**
+   * Read the launch token, but only once the harness is actually serving.
+   *
+   * The read is deferred to the proxy's first `start()` (and to any later
+   * re-read from the settings page) because `apply` runs while the host is
+   * still wiring its services — `ctx.connection` exists, but the webServer it
+   * depends on has not bound its port yet. Deferring keeps the read on the
+   * fully-initialised service.
+   */
+  const readToken = (): string | undefined => readLaunchToken(ctx)
   const controller = new ProxyController({
     base: {
       listenHost: resolved.listenHost,
@@ -98,9 +150,11 @@ export function apply(ctx: Context, config?: Config): void {
       upstreamPort: resolved.upstreamPort || ctx.webServer.port || 3080,
       username: resolved.username,
       password: resolved.password,
+      skipLaunchToken: resolved.skipLaunchToken,
     },
     settingsFile: dshHomePath('dsh-proxy.json'),
     log,
+    readLaunchToken: readToken,
   })
 
   ctx.effect(

@@ -290,3 +290,159 @@ describe('websocket', () => {
     expect(status).toBe(401)
   })
 })
+
+describe('launch-token auto-login (opt-in)', () => {
+  const TOKEN = 'launch-token-abc123'
+
+  /**
+   * An upstream that mimics DSH 0.2.x: 401 unless the launch token is present
+   * at exactly `GET /` (which mints a session cookie) or a cookie rides along.
+   */
+  async function gatedUpstream(): Promise<http.Server> {
+    const server = http.createServer((req, res) => {
+      const url = new URL(req.url ?? '/', 'http://up')
+      const token = url.searchParams.get('token')
+      const cookie = req.headers.cookie ?? ''
+      if (req.method === 'GET' && url.pathname === '/' && token === TOKEN) {
+        res.writeHead(303, {
+          location: './',
+          'cache-control': 'no-store',
+          'set-cookie': 'dsh-auth-ZGFzaA=v1.signed; Path=/; Max-Age=2592000',
+        })
+        res.end()
+        return
+      }
+      if (cookie.startsWith('dsh-auth-')) {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+        res.end('<!doctype html><html><body>AUTHENTICATED</body></html>')
+        return
+      }
+      res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' })
+      res.end('dsh web authentication required; reopen the URL printed by dsh web.\n')
+    })
+    cleanup.push(() =>
+      new Promise<void>((resolve) => {
+        server.closeAllConnections()
+        server.close(() => resolve())
+      }),
+    )
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    return server
+  }
+
+  /** Start a proxy against the given upstream, registering it for teardown. */
+  async function proxyFor(upstreamPort: number, launchToken?: string): Promise<number> {
+    const proxy = startLanProxy({
+      listenHost: '127.0.0.1',
+      listenPort: 0,
+      upstreamHost: '127.0.0.1',
+      upstreamPort,
+      username: USER,
+      password: PASS,
+      launchToken,
+    })
+    cleanup.splice(0, 0, () => proxy.close())
+    return proxy.ready
+  }
+
+  it('is inert when no token is configured: the 401 reaches the client', async () => {
+    const upstream = await gatedUpstream()
+    const port = await proxyFor((upstream.address() as AddressInfo).port)
+    const res = await fetch(`http://127.0.0.1:${port}/`, {
+      headers: { authorization: basic() },
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(401)
+    expect(await res.text()).toContain('dsh web authentication required')
+  })
+
+  it('completes the token exchange and hands the browser a session cookie', async () => {
+    const upstream = await gatedUpstream()
+    const port = await proxyFor((upstream.address() as AddressInfo).port, TOKEN)
+
+    // First visit: no cookie, no token. The proxy appends the launch token, so
+    // the upstream mints a cookie and 303s — the browser follows to `./`.
+    const first = await fetch(`http://127.0.0.1:${port}/`, {
+      headers: { authorization: basic() },
+      redirect: 'manual',
+    })
+    expect(first.status).toBe(303)
+    expect(first.headers.get('location')).toBe('./')
+    const cookie = first.headers.get('set-cookie') ?? ''
+    expect(cookie).toContain('dsh-auth-')
+    expect(cookie).toContain('Max-Age=2592000')
+    // The token must never be echoed back to the client.
+    expect(first.url).not.toContain('token')
+
+    // Second visit, replaying the minted cookie: served the app.
+    const second = await fetch(`http://127.0.0.1:${port}/`, {
+      headers: { authorization: basic(), cookie: cookie.split(';')[0] },
+    })
+    expect(second.status).toBe(200)
+    expect(await second.text()).toContain('AUTHENTICATED')
+  })
+
+  it('does not probe when the request already carries a cookie', async () => {
+    const upstream = await gatedUpstream()
+    let requests = 0
+    upstream.removeAllListeners('request')
+    upstream.on('request', (req, res) => {
+      requests += 1
+      if ((req.headers.cookie ?? '').startsWith('dsh-auth-')) {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+        res.end('<!doctype html><html><body>AUTHENTICATED</body></html>')
+        return
+      }
+      res.writeHead(401, { 'content-type': 'text/plain' })
+      res.end('unauthorized')
+    })
+    const port = await proxyFor((upstream.address() as AddressInfo).port, TOKEN)
+    const res = await fetch(`http://127.0.0.1:${port}/`, {
+      headers: { authorization: basic(), cookie: 'dsh-auth-ZGFzaA=v1.signed' },
+    })
+    expect(res.status).toBe(200)
+    // The client's own request only: no probe was needed.
+    expect(requests).toBe(1)
+  })
+
+  it('forwards a non-GET request untouched (no token exchange)', async () => {
+    const upstream = await gatedUpstream()
+    const port = await proxyFor((upstream.address() as AddressInfo).port, TOKEN)
+    // DSH only accepts the token at exactly GET /, so a POST would 401 twice;
+    // the proxy must not try to make it work.
+    const res = await fetch(`http://127.0.0.1:${port}/`, {
+      method: 'POST',
+      headers: { authorization: basic() },
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('forwards normally when the upstream answers anything but 401', async () => {
+    const upstream = await gatedUpstream()
+    upstream.removeAllListeners('request')
+    upstream.on('request', (_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      res.end('<!doctype html><html><body>OPEN</body></html>')
+    })
+    const port = await proxyFor((upstream.address() as AddressInfo).port, TOKEN)
+    const res = await fetch(`http://127.0.0.1:${port}/`, { headers: { authorization: basic() } })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('OPEN')
+  })
+
+  it('forwards normally when the upstream is unreachable (no probe error leaks)', async () => {
+    // A dead upstream port: the probe fails, so the request is forwarded as-is
+    // and the proxy's own 502 handler reports the failure.
+    const dead = http.createServer()
+    await new Promise<void>((resolve) => dead.listen(0, '127.0.0.1', resolve))
+    const deadPort = (dead.address() as AddressInfo).port
+    await new Promise<void>((resolve) => dead.close(() => resolve()))
+    const port = await proxyFor(deadPort, TOKEN)
+    const res = await fetch(`http://127.0.0.1:${port}/`, {
+      headers: { authorization: basic() },
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(502)
+  })
+})

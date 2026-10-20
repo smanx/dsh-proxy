@@ -4,7 +4,8 @@ A DeepSeek Harness plugin that exposes the local DSH web app (default `127.0.0.1
 
 - **HTTP + WebSocket reverse proxy** — real-time streams keep working.
 - **Native Basic Auth (off by default)** — the same model as the standalone dsh-proxy: the **browser's own credential dialog**, no custom login page, no session cookies. Username and password default to empty (open LAN access); setting **both** in the settings page turns password login on, after which unauthenticated requests are answered with `401 + WWW-Authenticate: Basic` and the browser pops its native dialog. After a successful login the browser caches the credentials for the origin and sends them automatically (including on WebSocket handshakes).
-- **Settings page** — DSH settings → "LAN Proxy": shows the running ports and whether password login is enabled, **starts/stops the proxy**, and edits the proxy listen port, username, and password; saving persists the patch to `$DSH_HOME/dsh-proxy.json` and immediately restarts the forwarding service.
+- **Settings page** — DSH settings → "LAN Proxy": shows the running ports and whether password login is enabled, **starts/stops the proxy**, and edits the proxy listen port, username, password, and the token-free-login toggle; saving persists the patch to `$DSH_HOME/dsh-proxy.json` and immediately restarts the forwarding service.
+- **Optional token-free first visit (off by default)** — DSH 0.2.x gates its web surface behind a per-process launch token that a LAN device never sees, so a first-time browser is locked out at `401 dsh web authentication required`. With this toggle on, the proxy performs the token→cookie exchange on the client's behalf, and every later visit works without the token. Off by default because it makes the proxy port the only barrier (see Security).
 - **Out-of-the-box compatibility fixes** — `Host`/`Origin` rewriting (passes the DSH `/api` same-origin trust fence from the LAN) and a `crypto.randomUUID` polyfill injected into proxied HTML (non-secure LAN contexts lack it, which would break every RPC).
 - **Lives inside `dsh web`** — no separate process; configured through the profile's `cordis.patch.yml`.
 
@@ -44,16 +45,18 @@ All knobs have schema defaults; override them in the **profile's `cordis.patch.y
     upstreamPort: 0             # 0 = follow the web app's actual bound port
     username: ''                # login username (default empty = password login off)
     password: ''                # login password (default empty = password login off)
+    skipLaunchToken: false      # token-free first visit (default OFF — see below)
 ```
 
 - Default `username` and `password` are both empty = **password login off** (open LAN access — not recommended). Password login turns on **only when both are set**; setting just one keeps it off (the settings page warns).
+- `skipLaunchToken` (default **false**): when **true**, the proxy appends DSH's per-process launch token to any request the upstream rejects with `401`, so the first visit from a new device completes the token→cookie exchange with nobody pasting the token. **Security trade-off**: with this on, any device that can reach the proxy port is admitted by DSH without the launch token, leaving the proxy's Basic Auth gate as the only barrier — so pair it with a username and password. Also editable in the settings page.
 
 ## Settings page (port / credentials / start-stop)
 
 After restarting `dsh web`, open DSH settings (gear icon) → "LAN Proxy":
 
 - **Status**: two red/green running lights — the **proxy port** (listen address:port; green = the proxy is actually bound, red = bind failed e.g. port busy) and the **default service port** (DSH service port; green = the default service answers a probe, red = unreachable) — plus the current username and whether password login is enabled. A **Start/Stop** button pair sits in the card header: Start is grayed out while running, Stop is grayed out while stopped.
-- **Edit settings**: change the **proxy listen port**, **username**, and **password** (leave empty to set blank). "Apply" writes `$DSH_HOME/dsh-proxy.json` and **immediately restarts the forwarding service**; changing the listen port moves the LAN access address.
+- **Edit settings**: change the **proxy listen port**, **username**, **password** (leave empty to set blank), and the **token-free login** checkbox. "Apply" writes `$DSH_HOME/dsh-proxy.json` and **immediately restarts the forwarding service**; changing the listen port moves the LAN access address.
 
 Settings-page changes persist and take precedence over the profile's `cordis.patch.yml`; `listenHost` / `listenPort` remain cordis-only. The page talks to the host through the `/dsh-proxy` Connection RPC channel (`status` / `update` / `start` / `stop`), scoped to loopback authority (still reachable from the LAN via the proxy's Host rewrite).
 
@@ -92,4 +95,5 @@ pnpm run smoke   # full live smoke test against a running DSH on 127.0.0.1:3080
 
 - **The LAN surface is OPEN by default** (empty username/password). Set **both** credentials in the settings page as soon as possible.
 - Once password login is enabled, DSH's `/api` trust fence sees the rewritten loopback `Host`, so **privileged RPCs (settings/credentials) are reachable from the LAN** — the Basic Auth gate is the only barrier.
+- **`skipLaunchToken` removes DSH's own token check** for the proxied surface: any device that can reach the proxy port is admitted without the launch token. Treat enabling it as equivalent to running the proxy with no DSH-side authentication, and always pair it with Basic Auth credentials.
 - Browser-cached Basic credentials are NOT invalidated by a password change: the old credentials get a 401 and the dialog reappears; enter the new password. To fully clear them, remove the site's saved password in the browser.

@@ -16,6 +16,8 @@ export interface PersistedRuntimeSettings {
   upstreamPort?: number
   username?: string
   password?: string
+  /** Launch-token auto-login override; see LanProxyUpdatePayload. */
+  skipLaunchToken?: boolean
 }
 
 /** Tolerant read of an unknown JSON value into the persisted shape. */
@@ -31,6 +33,7 @@ export function normalizeRuntimeSettings(raw: unknown): PersistedRuntimeSettings
   }
   if (typeof source.username === 'string') out.username = source.username
   if (typeof source.password === 'string') out.password = source.password
+  if (typeof source.skipLaunchToken === 'boolean') out.skipLaunchToken = source.skipLaunchToken
   return out
 }
 
@@ -64,7 +67,7 @@ export class RuntimeSettingsFile {
 }
 
 export type UpdateValidation =
-  | { ok: true; patch: Required<Pick<LanProxyUpdatePayload, 'listenPort' | 'upstreamPort' | 'username' | 'password'>> & LanProxyUpdatePayload }
+  | { ok: true; patch: Required<Pick<LanProxyUpdatePayload, 'listenPort' | 'upstreamPort' | 'username' | 'password' | 'skipLaunchToken'>> & LanProxyUpdatePayload }
   | { ok: false; message: string }
 
 const MAX_USERNAME_LENGTH = 64
@@ -128,11 +131,24 @@ export function validateUpdate(
     patch.password = input.password
   }
 
-  if (patch.listenPort === undefined && patch.upstreamPort === undefined && patch.username === undefined && patch.password === undefined) {
+  if (input.skipLaunchToken !== undefined) {
+    if (typeof input.skipLaunchToken !== 'boolean') {
+      return { ok: false, message: '免 token 登录开关必须是布尔值' }
+    }
+    patch.skipLaunchToken = input.skipLaunchToken
+  }
+
+  if (
+    patch.listenPort === undefined
+    && patch.upstreamPort === undefined
+    && patch.username === undefined
+    && patch.password === undefined
+    && patch.skipLaunchToken === undefined
+  ) {
     return { ok: false, message: '没有可保存的修改' }
   }
   return {
     ok: true,
-    patch: patch as Required<Pick<LanProxyUpdatePayload, 'listenPort' | 'upstreamPort' | 'username' | 'password'>> & LanProxyUpdatePayload,
+    patch: patch as Required<Pick<LanProxyUpdatePayload, 'listenPort' | 'upstreamPort' | 'username' | 'password' | 'skipLaunchToken'>> & LanProxyUpdatePayload,
   }
 }

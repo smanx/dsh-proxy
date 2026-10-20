@@ -16,6 +16,9 @@ export declare const zh: {
     'status.authOff': string;
     'status.persistedOn': string;
     'status.persistedOff': string;
+    'status.skipToken': string;
+    'status.skipTokenOn': string;
+    'status.skipTokenOff': string;
     'status.loading': string;
     'status.unreachable': string;
     'status.retry': string;
@@ -33,6 +36,8 @@ export declare const zh: {
     'form.usernameHint': string;
     'form.password': string;
     'form.passwordHint': string;
+    'form.skipToken': string;
+    'form.skipTokenHint': string;
     'form.showPassword': string;
     'form.hidePassword': string;
     'form.save': string;

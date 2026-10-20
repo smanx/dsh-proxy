@@ -80,6 +80,7 @@ function SettingsSection({ rpc, t }) {
   const [listenPort, setListenPort] = (0, import_react.useState)("");
   const [username, setUsername] = (0, import_react.useState)("");
   const [password, setPassword] = (0, import_react.useState)("");
+  const [skipLaunchToken, setSkipLaunchToken] = (0, import_react.useState)(false);
   const formSeededRef = (0, import_react.useRef)(false);
   const applyPhase = (0, import_react.useCallback)((next) => {
     phaseRef.current = next;
@@ -89,6 +90,7 @@ function SettingsSection({ rpc, t }) {
     setListenPort(String(next.listenPort));
     setUsername(next.username);
     setPassword(next.password ?? "");
+    setSkipLaunchToken(next.skipLaunchToken);
   }, []);
   const loadStatus = (0, import_react.useCallback)(async () => {
     applyPhase("loading");
@@ -166,7 +168,8 @@ function SettingsSection({ rpc, t }) {
       const payload = {
         listenPort: port,
         username: username.trim(),
-        password
+        password,
+        skipLaunchToken
       };
       const result = await rpc.call(RPC_CHANNEL, RPC_UPDATE_ENDPOINT, payload);
       if (result.ok) {
@@ -216,6 +219,7 @@ function SettingsSection({ rpc, t }) {
     ),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusRow, { label: t("status.username"), value: status.username }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusRow, { label: t("status.auth"), value: authBadge }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusRow, { label: t("status.skipToken"), value: status.skipLaunchToken ? t("status.skipTokenOn") : t("status.skipTokenOff") }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "dsh_lanproxy_hint", children: status.persisted ? t("status.persistedOn") : t("status.persistedOff") })
   ] }) : null;
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "dsh_lanproxy_section", "aria-labelledby": "dsh-lanproxy-settings-title", children: [
@@ -329,6 +333,24 @@ function SettingsSection({ rpc, t }) {
           )
         ] })
       ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh_lanproxy_field", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh_lanproxy_checkRow", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "input",
+            {
+              id: "dsh-lanproxy-skip-token",
+              className: "dsh_lanproxy_checkbox",
+              type: "checkbox",
+              checked: skipLaunchToken,
+              onChange: (event) => {
+                setSkipLaunchToken(event.target.checked);
+              }
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "dsh_lanproxy_fieldLabel", htmlFor: "dsh-lanproxy-skip-token", children: t("form.skipToken") })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "dsh_lanproxy_fieldHint", children: t("form.skipTokenHint") })
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh_lanproxy_actions", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "submit", className: "dsh_lanproxy_button", disabled: saving, children: saving ? t("form.saving") : t("form.save") }),
         message !== null ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "dsh_lanproxy_message", children: message }) : null,
@@ -355,6 +377,9 @@ var zh = {
   "status.authOff": "\u672A\u542F\u7528\uFF08\u5C40\u57DF\u7F51\u5F00\u653E\u8BBF\u95EE\uFF09",
   "status.persistedOn": "\u5B58\u5728\u5DF2\u4FDD\u5B58\u7684\u8FD0\u884C\u914D\u7F6E\uFF08\u4F18\u5148\u4E8E cordis \u914D\u7F6E\uFF09",
   "status.persistedOff": "\u4F7F\u7528 cordis \u914D\u7F6E",
+  "status.skipToken": "\u514D token \u767B\u5F55",
+  "status.skipTokenOn": "\u5DF2\u542F\u7528\uFF08\u9996\u6B21\u8BBF\u95EE\u81EA\u52A8\u767B\u5F55\uFF09",
+  "status.skipTokenOff": "\u672A\u542F\u7528\uFF08\u9700\u624B\u52A8\u5E26 token \u8BBF\u95EE\u4E00\u6B21\uFF09",
   "status.loading": "\u52A0\u8F7D\u4E2D\u2026",
   "status.unreachable": "\u65E0\u6CD5\u8FDE\u63A5\u4EE3\u7406\u670D\u52A1\uFF0C\u8BF7\u786E\u8BA4\u63D2\u4EF6\u5DF2\u542F\u7528\u5E76\u91CD\u542F\u8FC7 dsh web\u3002",
   "status.retry": "\u91CD\u8BD5",
@@ -372,6 +397,8 @@ var zh = {
   "form.usernameHint": "\u6E05\u7A7A\u5373\u8BBE\u4E3A\u7A7A",
   "form.password": "\u5BC6\u7801",
   "form.passwordHint": "\u6E05\u7A7A\u5373\u8BBE\u4E3A\u7A7A\uFF1B\u7528\u6237\u540D\u4E0E\u5BC6\u7801\u9700\u540C\u65F6\u975E\u7A7A\u624D\u4F1A\u542F\u7528\u5BC6\u7801\u767B\u5F55",
+  "form.skipToken": "\u514D token \u767B\u5F55",
+  "form.skipTokenHint": "\u5F00\u542F\u540E\uFF0C\u9996\u6B21\u8BBF\u95EE\u4F1A\u81EA\u52A8\u5E26\u4E0A DSH \u542F\u52A8 token \u5B8C\u6210\u767B\u5F55\uFF0C\u65E0\u9700\u624B\u52A8\u590D\u5236 token\u3002\u6CE8\u610F\uFF1A\u8FD9\u4F1A\u8BA9\u5C40\u57DF\u7F51\u5185\u80FD\u8FDE\u5230\u672C\u7AEF\u53E3\u7684\u8BBE\u5907\u90FD\u8DF3\u8FC7 DSH \u7684 token \u6821\u9A8C\uFF0C\u8BF7\u914D\u5408\u4E0A\u9762\u7684\u7528\u6237\u540D\u5BC6\u7801\u4E00\u8D77\u4F7F\u7528\u3002",
   "form.showPassword": "\u663E\u793A\u5BC6\u7801",
   "form.hidePassword": "\u9690\u85CF\u5BC6\u7801",
   "form.save": "\u5E94\u7528",
@@ -400,6 +427,9 @@ var en = {
   "status.authOff": "Not enabled (open access)",
   "status.persistedOn": "A saved runtime config overrides the cordis config",
   "status.persistedOff": "Using the cordis config",
+  "status.skipToken": "Token-free login",
+  "status.skipTokenOn": "Enabled (first visit signs in automatically)",
+  "status.skipTokenOff": "Disabled (the first visit still needs the token once)",
   "status.loading": "Loading\u2026",
   "status.unreachable": "Cannot reach the proxy service \u2014 make sure the plugin is enabled and dsh web was restarted.",
   "status.retry": "Retry",
@@ -417,6 +447,8 @@ var en = {
   "form.usernameHint": "Empty to set blank",
   "form.password": "Password",
   "form.passwordHint": "Empty to set blank; password login requires BOTH username and password",
+  "form.skipToken": "Token-free login",
+  "form.skipTokenHint": "When on, the first visit automatically carries the DSH launch token, so nobody has to copy it. Note: this lets any device that can reach this port skip DSH token validation \u2014 pair it with a username and password above.",
   "form.showPassword": "Show password",
   "form.hidePassword": "Hide password",
   "form.save": "Apply",
@@ -582,6 +614,24 @@ var cssText = `
   color: var(--dsw-alias-label-tertiary, #8b949e);
   font-size: 12px;
   line-height: 18px;
+  margin: 4px 0 0;
+}
+/* Checkbox row for the token-free-login toggle. */
+.dsh_lanproxy_checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dsh_lanproxy_checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--dsw-alias-accent, #2f81f7);
+  cursor: pointer;
+  flex: none;
+}
+.dsh_lanproxy_checkRow .dsh_lanproxy_fieldLabel {
+  cursor: pointer;
 }
 .dsh_lanproxy_input {
   box-sizing: border-box;

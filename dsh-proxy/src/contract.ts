@@ -44,6 +44,8 @@ export interface LanProxyStatus {
   password: string
   /** Whether the auth gate is on (both credentials non-empty). */
   authEnabled: boolean
+  /** Whether launch-token auto-login is on (DSH 0.2.x first-visit bypass). */
+  skipLaunchToken: boolean
   /** Whether a persisted runtime override exists on top of the cordis config. */
   persisted: boolean
 }
@@ -62,6 +64,14 @@ export interface LanProxyUpdatePayload {
   username?: string
   /** New login password; an empty string clears it (auth needs a non-empty pair to stay on). */
   password?: string
+  /**
+   * Toggle launch-token auto-login: when true, the proxy appends DSH's launch
+   * token to requests the upstream rejects with 401, so a first-time browser
+   * is authenticated without anyone pasting the token. The host reads the
+   * token from the Connection service when the forwarding service starts, so
+   * turning the flag on restarts it and takes effect immediately.
+   */
+  skipLaunchToken?: boolean
 }
 
 /** Successful update response. */

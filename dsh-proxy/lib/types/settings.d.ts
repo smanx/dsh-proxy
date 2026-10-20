@@ -7,6 +7,8 @@ export interface PersistedRuntimeSettings {
     upstreamPort?: number;
     username?: string;
     password?: string;
+    /** Launch-token auto-login override; see LanProxyUpdatePayload. */
+    skipLaunchToken?: boolean;
 }
 /** Tolerant read of an unknown JSON value into the persisted shape. */
 export declare function normalizeRuntimeSettings(raw: unknown): PersistedRuntimeSettings;
@@ -22,7 +24,7 @@ export declare class RuntimeSettingsFile {
 }
 export type UpdateValidation = {
     ok: true;
-    patch: Required<Pick<LanProxyUpdatePayload, 'listenPort' | 'upstreamPort' | 'username' | 'password'>> & LanProxyUpdatePayload;
+    patch: Required<Pick<LanProxyUpdatePayload, 'listenPort' | 'upstreamPort' | 'username' | 'password' | 'skipLaunchToken'>> & LanProxyUpdatePayload;
 } | {
     ok: false;
     message: string;

@@ -7,6 +7,9 @@ export interface EffectiveProxyOptions {
     upstreamPort: number;
     username: string;
     password: string;
+    launchToken?: string;
+    /** Whether launch-token auto-login is enabled. */
+    skipLaunchToken?: boolean;
 }
 export interface ProxyControllerOptions {
     /** Options from the cordis config (schema defaults applied, upstream port resolved). */
@@ -15,6 +18,12 @@ export interface ProxyControllerOptions {
     settingsFile: string;
     /** Log sink (the plugin passes ctx.logger-based printer). */
     log: (level: 'info' | 'warn' | 'error', message: string) => void;
+    /**
+     * Re-reads the host's current launch token. Called when the proxy starts
+     * with auto-login on, and again whenever the settings page turns the flag on
+     * — the token is per-process, so it is never persisted, only the flag is.
+     */
+    readLaunchToken?: () => string | undefined;
 }
 export type UpdateOutcome = {
     ok: true;

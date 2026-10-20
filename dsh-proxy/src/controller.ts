@@ -18,6 +18,9 @@ export interface EffectiveProxyOptions {
   upstreamPort: number
   username: string
   password: string
+  launchToken?: string
+  /** Whether launch-token auto-login is enabled. */
+  skipLaunchToken?: boolean
 }
 
 export interface ProxyControllerOptions {
@@ -27,6 +30,12 @@ export interface ProxyControllerOptions {
   settingsFile: string
   /** Log sink (the plugin passes ctx.logger-based printer). */
   log: (level: 'info' | 'warn' | 'error', message: string) => void
+  /**
+   * Re-reads the host's current launch token. Called when the proxy starts
+   * with auto-login on, and again whenever the settings page turns the flag on
+   * — the token is per-process, so it is never persisted, only the flag is.
+   */
+  readLaunchToken?: () => string | undefined
 }
 
 export type UpdateOutcome =
@@ -60,6 +69,11 @@ export class ProxyController {
     if (persisted.upstreamPort !== undefined) this.options.upstreamPort = persisted.upstreamPort
     if (persisted.username !== undefined) this.options.username = persisted.username
     if (persisted.password !== undefined) this.options.password = persisted.password
+    // The launch token itself is never persisted (it is per-process and the
+    // host re-reads it on every start); only the flag is. Turning the flag on
+    // while no token was supplied keeps auto-login off until the token can be
+    // read, which `start()` and `update()` both do.
+    if (persisted.skipLaunchToken !== undefined) this.options.skipLaunchToken = persisted.skipLaunchToken
   }
 
   /** Whether a persisted runtime override exists (drives the status flag). */
@@ -69,6 +83,7 @@ export class ProxyController {
       || current.upstreamPort !== undefined
       || current.username !== undefined
       || current.password !== undefined
+      || current.skipLaunchToken !== undefined
   }
 
   /**
@@ -80,6 +95,18 @@ export class ProxyController {
   async start(): Promise<StartOutcome> {
     if (this.handle !== null) return { ok: true }
     const log = this.log
+    // Resolve the launch token HERE, not at construction: the read is deferred
+    // until the harness is serving, and `start()` is the first point where the
+    // webServer (and therefore BrowserAuth behind `connection`) is fully up.
+    if (this.options.skipLaunchToken === true && this.opts.readLaunchToken !== undefined) {
+      const token = this.opts.readLaunchToken()
+      if (token === undefined || token === '') {
+        log('warn', 'dsh-proxy: skipLaunchToken is on but the host supplied no launch token; the LAN surface still requires DSH authentication')
+      } else {
+        this.options.launchToken = token
+        log('info', 'dsh-proxy: launch-token auto-login enabled — a first-time browser is authenticated without the token')
+      }
+    }
     const handle = startLanProxy({
       listenHost: this.options.listenHost,
       listenPort: this.options.listenPort,
@@ -87,6 +114,7 @@ export class ProxyController {
       upstreamPort: this.options.upstreamPort,
       username: this.options.username,
       password: this.options.password,
+      launchToken: this.options.launchToken,
       log,
     })
     this.handle = handle
@@ -103,6 +131,9 @@ export class ProxyController {
         log('warn', 'dsh-proxy: password login NOT enabled — username and password must BOTH be set (only one is configured); the LAN surface is open')
       } else {
         log('warn', 'dsh-proxy: password login is disabled (username and password are both empty); the LAN surface is open')
+      }
+      if (this.options.launchToken !== undefined && this.options.launchToken !== '') {
+        log('info', 'dsh-proxy: launch-token auto-login ON — a first-time browser is authenticated without the token')
       }
       return { ok: true }
     } catch (err) {
@@ -162,6 +193,7 @@ export class ProxyController {
       username: this.options.username,
       password: this.options.password,
       authEnabled: this.options.username !== '' && this.options.password !== '',
+      skipLaunchToken: this.options.skipLaunchToken === true,
       persisted: this.persisted(),
     }
   }
@@ -228,6 +260,18 @@ export class ProxyController {
     if (patch.upstreamPort !== undefined) this.options.upstreamPort = patch.upstreamPort
     if (patch.username !== undefined) this.options.username = patch.username
     if (patch.password !== undefined) this.options.password = patch.password
+    if (patch.skipLaunchToken !== undefined) this.options.skipLaunchToken = patch.skipLaunchToken
+    // Auto-login needs the actual token, which is read from the host (lazily,
+    // because BrowserAuth only exists once the harness is serving). Re-read it
+    // whenever the flag is being turned on so the settings page takes effect
+    // without a dsh web restart; turning it OFF clears the cached token.
+    if (patch.skipLaunchToken === true && this.opts.readLaunchToken !== undefined) {
+      this.options.launchToken = this.opts.readLaunchToken() ?? this.options.launchToken
+      if (this.options.launchToken === undefined || this.options.launchToken === '') {
+        this.log('warn', 'dsh-proxy: the host supplied no launch token, so auto-login cannot take effect until dsh web restarts')
+      }
+    }
+    if (patch.skipLaunchToken === false) this.options.launchToken = undefined
 
     // A running service must restart to pick up the new effective options; a
     // stopped service is just saved and stays stopped (starting it is the
