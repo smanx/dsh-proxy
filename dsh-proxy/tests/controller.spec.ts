@@ -39,9 +39,20 @@ function baseOptions(upstreamPort: number): EffectiveProxyOptions {
   }
 }
 
+/** OS-assigned test ports may fall in Fetch's reserved list on a custom ephemeral range. */
 async function fetchThrough(url: string, headers: Record<string, string> = {}): Promise<{ status: number; text: string }> {
-  const res = await fetch(url, { headers, redirect: 'manual' })
-  return { status: res.status, text: await res.text() }
+  return new Promise((resolve, reject) => {
+    const request = http.get(url, { headers }, response => {
+      const status = response.statusCode
+      if (status === undefined) { response.resume(); reject(new Error('Missing proxy response status')); return }
+      let text = ''
+      response.setEncoding('utf8')
+      response.on('data', (chunk: string) => { text += chunk })
+      response.on('error', reject)
+      response.on('end', () => resolve({ status, text }))
+    })
+    request.on('error', reject)
+  })
 }
 
 beforeEach(() => {
@@ -138,7 +149,7 @@ describe('ProxyController update', () => {
     // The old OS-assigned listener is gone.
     let oldStatus = 0
     try {
-      const r = await fetch(`http://127.0.0.1:${oldPort}/`, { redirect: 'manual' })
+      const r = await fetchThrough(`http://127.0.0.1:${oldPort}/`)
       oldStatus = r.status
     } catch {
       oldStatus = 0
