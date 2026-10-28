@@ -7,7 +7,7 @@ Supports Basic Auth, LAN access, and `crypto.randomUUID` polyfill injection.
 
 ## DSH plugin (recommended · dsh-proxy)
 
-**Recommended for DSH (DeepSeek Harness) users**: install the proxy as a plugin into the web profile — it **starts and stops with `dsh web`**, no separate process or downloadable binary needed, with a full settings page.
+**Recommended for DSH (DeepSeek Harness) users**: install the proxy as a plugin into the `web` or `desktop` profile — it **starts and stops with `dsh web` / the desktop app**, no separate process or downloadable binary needed, with a full settings page.
 
 - Same native **Basic Auth** (browser dialog) and full HTTP + WebSocket forwarding as the standalone builds
 - **Settings page** (DSH settings → LAN Proxy): status lights, start/stop, edit the proxy listen port, username, password, and the token-free-login toggle (form pre-fills current values; empty means set blank)
@@ -19,6 +19,10 @@ Supports Basic Auth, LAN access, and `crypto.randomUUID` polyfill injection.
 </p>
 
 ### Install
+
+The plugin is installed per profile, and the Web and desktop sides are independent: install it only where you use it, or once on each side if you use both.
+
+**① Web (`dsh web`, command line)**
 
 **Online install (recommended)** — directly from GitHub, no need to download the repository:
 
@@ -32,7 +36,22 @@ dsh plugin --profile web add github:smanx/dsh-proxy#master
 dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
-After restarting `dsh web`, visit `http://<your-LAN-IP>:3081` and the browser shows the native Basic Auth dialog.
+Verify or uninstall with the same command: replace `add <spec>` with `ls` or `remove @smanx/dsh-proxy`.
+
+**② Desktop (DeepSeek Harness desktop app) — install inside the app**
+
+Open the **Plugins** panel in the desktop app's left sidebar → **Add plugin**, then type into the field:
+
+- Online install (recommended): `github:smanx/dsh-proxy#master`
+- Local install (repository cloned/downloaded on this machine): `C:/mydata/codes/dsh-proxy`
+
+The field accepts a package name, a Git address, an archive, or an absolute local path. Afterwards **quit the desktop app completely and reopen it** for the change to take effect; verify and uninstall happen in the same panel — **`@smanx/dsh-proxy`** should show up under **Installed**.
+
+> Do not install for the desktop app from a terminal: the `desktop` profile is owned exclusively by the Electron application, and the npm-installed `dsh` rejects its plugin-management requests (`error: profile "desktop" is managed exclusively by the Electron application`). Use the graphical panel above.
+
+The desktop app's own service port is assigned by the app, and the plugin defaults to `upstreamPort: 0`, which follows the real bound port automatically — no configuration needed. The settings page is the same as on Web (Settings → LAN Proxy).
+
+After restarting `dsh web` (or the desktop app), visit `http://<your-LAN-IP>:3081` and the browser shows the native Basic Auth dialog.
 Details: [`dsh-proxy/README.md`](dsh-proxy/README.md).
 
 ## Standalone executables (go/ and node/)

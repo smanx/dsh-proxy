@@ -7,7 +7,7 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
 
 ## DSH 插件版（推荐 · dsh-proxy）
 
-**推荐 DSH（DeepSeek Harness）用户使用**：把代理作为插件装进 web profile，**随 `dsh web` 启停**，无需单独进程、无需下载可执行文件，带完整设置页面。
+**推荐 DSH（DeepSeek Harness）用户使用**：把代理作为插件装进 `web` 或 `desktop` profile，**随 `dsh web` / 桌面应用启停**，无需单独进程、无需下载可执行文件，带完整设置页面。
 
 - 与独立版相同的原生 **Basic Auth**（浏览器弹窗）与 HTTP + WebSocket 全协议转发
 - **设置页面**（DSH 设置 → 局域网代理）：状态红绿灯、启动/停止、改代理监听端口、用户名密码与免 token 登录开关（表单回写当前值，留空即设为空）
@@ -20,19 +20,38 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
 
 ### 安装
 
-**在线安装（推荐）**——直接从 GitHub 安装（无需下载仓库）：
+插件按 profile 安装，Web 端与桌面端相互独立：只对谁生效就装谁，两边都用就各装一次。
+
+**① Web 端（`dsh web`，命令行安装）**
+
+在线安装（推荐）——直接从 GitHub 安装（无需下载仓库）：
 
 ```bash
 dsh plugin --profile web add github:smanx/dsh-proxy#master
 ```
 
-**本地安装**（仓库已克隆/下载到本机）：
+本地安装（仓库已克隆/下载到本机）：
 
 ```bash
 dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 ```
 
-重启 `dsh web` 后，访问 `http://<局域网IP>:3081` 即弹 Basic Auth 登录框。详细说明见 [`dsh-proxy/README.zh.md`](dsh-proxy/README.zh.md)。
+核对与卸载走同一命令：把 `add <spec>` 换成 `ls` 或 `remove @smanx/dsh-proxy`。
+
+**② 桌面端（DeepSeek Harness 桌面应用）——在应用内安装**
+
+桌面应用左侧栏的 **「插件」面板** → **「添加插件」**，在输入框里填入：
+
+- 在线安装（推荐）：`github:smanx/dsh-proxy#master`
+- 本地安装（仓库已克隆/下载到本机）：`C:/mydata/codes/dsh-proxy`
+
+该输入框接受包名、Git 地址、压缩包和本地绝对路径。安装完成后**完全退出桌面应用再重新打开**即生效；核对与卸载都在同一个面板（**「已安装」**列表里应出现 `@smanx/dsh-proxy`）。
+
+> 桌面端**不要**用终端命令安装：`desktop` profile 由 Electron 独占持有，npm 版 `dsh` 会直接拒绝它的插件管理请求（`error: profile "desktop" is managed exclusively by the Electron application`），只能走上面的图形界面。
+
+桌面应用的内置服务端口由应用分配，插件默认 `upstreamPort: 0` 自动跟随实际端口，无需手动配置；设置入口与 Web 端相同（设置 → 局域网代理）。
+
+重启 `dsh web`（桌面端则重启应用）后，访问 `http://<局域网IP>:3081` 即弹 Basic Auth 登录框。详细说明见 [`dsh-proxy/README.zh.md`](dsh-proxy/README.zh.md)。
 
 ## 独立可执行版本（go/ 与 node/）
 
