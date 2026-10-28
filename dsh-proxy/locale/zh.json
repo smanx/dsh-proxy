@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "局域网代理",
+    "description": "用第二个端口把 DSH Web 界面开放到局域网：原生 Basic Auth 弹窗、HTTP + WebSocket 全协议转发，带设置页面。"
+  }
+}
