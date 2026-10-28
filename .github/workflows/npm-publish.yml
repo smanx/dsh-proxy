@@ -102,7 +102,8 @@ jobs:
           # 若与 git 里的不一致，说明这次改动忘了把 lib/ 一起提交（AGENTS.md 的规矩）。
           # 失败时把差异原样打出来，否则这条守卫无法远程诊断。
           if ! git diff --quiet -- dsh-proxy/lib; then
-            echo "::error::dsh-proxy/lib 与源码构建结果不一致，差异见下方输出"
+            DIFF=$(git diff --name-only -- dsh-proxy/lib | tr '\n' ' ')
+            echo "::error::dsh-proxy/lib 与源码构建结果不一致：$DIFF"
             git status --porcelain -- dsh-proxy/lib
             git --no-pager diff --stat -- dsh-proxy/lib
             git --no-pager diff -- dsh-proxy/lib | head -n 80
