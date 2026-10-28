@@ -24,7 +24,13 @@ The plugin is installed per profile, and the Web and desktop sides are independe
 
 **① Web (`dsh web`, command line)**
 
-**Online install (recommended)** — directly from GitHub, no need to download the repository:
+**npm install (recommended)** — versions pinned on the registry, no GitHub dependency:
+
+```bash
+dsh plugin --profile web add @smanx/dsh-proxy
+```
+
+From GitHub (follows the latest master):
 
 ```bash
 dsh plugin --profile web add github:smanx/dsh-proxy#master
@@ -38,11 +44,14 @@ dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 
 Verify or uninstall with the same command: replace `add <spec>` with `ls` or `remove @smanx/dsh-proxy`.
 
+> `dsh plugin` fetches through the registry pnpm is configured with. Mirrors such as npmmirror lag fresh releases by minutes: if a new version will not install, retry later or point pnpm's registry at the official one.
+
 **② Desktop (DeepSeek Harness desktop app) — install inside the app**
 
 Open the **Plugins** panel in the desktop app's left sidebar → **Add plugin**, then type into the field:
 
-- Online install (recommended): `github:smanx/dsh-proxy#master`
+- npm install (recommended): `@smanx/dsh-proxy`
+- From GitHub (follows master): `github:smanx/dsh-proxy#master`
 - Local install (repository cloned/downloaded on this machine): `C:/mydata/codes/dsh-proxy`
 
 The field accepts a package name, a Git address, an archive, or an absolute local path. Afterwards **quit the desktop app completely and reopen it** for the change to take effect; verify and uninstall happen in the same panel — **`@smanx/dsh-proxy`** should show up under **Installed**.

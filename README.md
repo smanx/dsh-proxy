@@ -24,7 +24,13 @@ HTTP + WebSocket 反向代理：把局域网端口转发到本地 DSH 服务 `12
 
 **① Web 端（`dsh web`，命令行安装）**
 
-在线安装（推荐）——直接从 GitHub 安装（无需下载仓库）：
+npm 安装（推荐）——版本固定在 registry 上，不依赖 GitHub：
+
+```bash
+dsh plugin --profile web add @smanx/dsh-proxy
+```
+
+从 GitHub 安装（跟随 master 最新代码）：
 
 ```bash
 dsh plugin --profile web add github:smanx/dsh-proxy#master
@@ -38,11 +44,14 @@ dsh plugin --profile web add file:C:/mydata/codes/dsh-proxy
 
 核对与卸载走同一命令：把 `add <spec>` 换成 `ls` 或 `remove @smanx/dsh-proxy`。
 
+> 国内网络下 `dsh plugin` 按 pnpm 配置的注册表拉取，npmmirror 对新发布的同步有分钟级延迟：刚发的版本装不到就稍后重试，或把 pnpm 的 registry 指向官方源后再装。
+
 **② 桌面端（DeepSeek Harness 桌面应用）——在应用内安装**
 
 桌面应用左侧栏的 **「插件」面板** → **「添加插件」**，在输入框里填入：
 
-- 在线安装（推荐）：`github:smanx/dsh-proxy#master`
+- npm 安装（推荐）：`@smanx/dsh-proxy`
+- 从 GitHub（跟随 master）：`github:smanx/dsh-proxy#master`
 - 本地安装（仓库已克隆/下载到本机）：`C:/mydata/codes/dsh-proxy`
 
 该输入框接受包名、Git 地址、压缩包和本地绝对路径。安装完成后**完全退出桌面应用再重新打开**即生效；核对与卸载都在同一个面板（**「已安装」**列表里应出现 `@smanx/dsh-proxy`）。
