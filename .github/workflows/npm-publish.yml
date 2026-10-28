@@ -98,12 +98,16 @@ jobs:
       - name: 确认提交的构建产物与源码同步
         if: steps.already.outputs.exists == 'false'
         run: |
-          # 插件随包发布的是已提交的 dsh-proxy/lib/；`pnpm run check` 刚刚重建过它，
-          # 若与 git 里的不一致，说明这次改动忘了把 lib/ 一起提交。
-          git diff --exit-code -- dsh-proxy/lib || {
-            echo "::error::dsh-proxy/lib 与 src 不同步：请重新 `pnpm run build` 并把 lib/ 一起提交。"
+          # 插件随包发布的是已提交的 dsh-proxy/lib/；上一步刚刚重建过它。
+          # 若与 git 里的不一致，说明这次改动忘了把 lib/ 一起提交（AGENTS.md 的规矩）。
+          # 失败时把差异原样打出来，否则这条守卫无法远程诊断。
+          if ! git diff --quiet -- dsh-proxy/lib; then
+            echo "::error::dsh-proxy/lib 与源码构建结果不一致，差异见下方输出"
+            git status --porcelain -- dsh-proxy/lib
+            git --no-pager diff --stat -- dsh-proxy/lib
+            git --no-pager diff -- dsh-proxy/lib | head -n 80
             exit 1
-          }
+          fi
 
       - name: 打印将要发布的包内容
         if: steps.already.outputs.exists == 'false'
