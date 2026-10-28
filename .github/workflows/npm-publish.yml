@@ -136,21 +136,7 @@ jobs:
             exit "$CODE"
           fi
 
-      - name: 发布后回读确认（仅报告，不失败）
-        if: steps.already.outputs.exists == 'false'
-        run: |
-          # 发布步骤以 npm publish 的退出码为准——那一步成功就是发布成功。
-          # 这一步只是回读佐证。registry/CDN 会把新包的 404 缓存数分钟
-          # （0.1.5、0.1.6 两次实测，/latest 也可能滞后 50 秒以上），
-          # 所以这里无论结果如何都不让运行变红，最多发一条警告。
-          for i in 1 2 3 4 5 6; do
-            if npm view "$PACKAGE@${{ steps.version.outputs.version }}" version dist.tarball \
-                 --registry "$REGISTRY" --prefer-online >/dev/null 2>&1; then
-              npm view "$PACKAGE@${{ steps.version.outputs.version }}" version name dist.tarball \
-                --registry "$REGISTRY" --prefer-online --json
-              exit 0
-            fi
-            echo "第 $i 次回读未命中（新包的 packument 传播中），15 秒后重试"
-            sleep 15
-          done
-          echo "::warning::90 秒内 npm view 仍未看到 $PACKAGE@${{ steps.version.outputs.version }}，这是新包 packument 的传播延迟；发布本身已成功（npm publish 退出码 0），版本稍后可在 npmjs.com 与 /latest 端点确认"
+      # 没有回读步骤：npm publish 的退出码就是发布成败的唯一权威信号。
+      # registry/CDN 会把新包的 404 缓存数分钟，任何发布后的 GET（npm view、
+      # 甚至 /latest）都可能读到假的 404——0.1.5、0.1.6 两次实测都是如此，
+      # 回读只会把已经成功的发布染红。
