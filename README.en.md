@@ -129,7 +129,7 @@ Pushing a `v*` tag triggers two independent workflows, each succeeding or failin
 
 Publishing to npm needs one repository secret, **Settings → Secrets and variables → Actions → `NPM_TOKEN`**: a npmjs **Granular Access Token** scoped to this package with Read/Write (or an Automation token), which works around account 2FA.
 
-Versions come from the manifests — the workflow only checks them, never rewrites them: the tag `v0.1.5` must match `version` in the root `package.json` **and** in `dsh-proxy/package.json`, or the run fails. That guard exists because installs read the root manifest (its `main` points at `dsh-proxy/lib/index.cjs`), so the two must not drift. Before publishing, the workflow runs `pnpm run check` and verifies with `git diff --exit-code dsh-proxy/lib` that the committed bundle matches the source.
+Versions come from the manifests — the workflow only checks them, never rewrites them: the tag `v0.1.5` must match `version` in the root `package.json` **and** in `dsh-proxy/package.json`, or the run fails. That guard exists because installs read the root manifest (its `main` points at `dsh-proxy/lib/index.cjs`), so the two must not drift. Before publishing, the workflow runs `pnpm install --frozen-lockfile && pnpm run check` (typecheck + tests + rebuild `lib/`), and **packs the freshly rebuilt output**, so what ships always matches the tagged source. The committed `dsh-proxy/lib/` is only a convenience for the `github:` / `file:` install paths; it need not be byte-identical to a Linux rebuild (in practice `index.cjs` and the two `.map` files differ), and the workflow warns rather than blocks when it isn't.
 
 ```bash
 # A full release

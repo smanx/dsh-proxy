@@ -127,7 +127,7 @@ node -e "const ws=new WebSocket('ws://127.0.0.1:3091/api/events.mux',{headers:{A
 
 发布 npm 前需要在仓库 **Settings → Secrets and variables → Actions** 里配一个名为 `NPM_TOKEN` 的 Secret：npmjs 上生成的 **Granular Access Token**（只授予本包 Read/Write）或 Automation token，它能绕过账号 2FA。
 
-版本号以仓库里的清单为准，工作流**只核对不改写**：标签 `v0.1.5` 必须与根 `package.json` 和 `dsh-proxy/package.json` 的 `version` 三者一致，否则直接失败——这是为了防止根清单与插件清单版本漂移（发布读的是根清单，`main` 指向 `dsh-proxy/lib/index.cjs`）。发布前工作流还会跑 `pnpm run check`，并用 `git diff --exit-code dsh-proxy/lib` 确认已提交的构建产物与源码同步。
+版本号以仓库里的清单为准，工作流**只核对不改写**：标签 `v0.1.5` 必须与根 `package.json` 和 `dsh-proxy/package.json` 的 `version` 三者一致，否则直接失败——这是为了防止根清单与插件清单版本漂移（发布读的是根清单，`main` 指向 `dsh-proxy/lib/index.cjs`）。发布前工作流还会跑 `pnpm install --frozen-lockfile && pnpm run check`（typecheck + 测试 + 重建 `lib/`），**打包用的是刚重建出来的产物**，所以发布内容一定与该标签的源码一致。仓库里已提交的 `dsh-proxy/lib/` 只是 `github:` / `file:` 直装路径的便利产物；它与 Linux 上的重建结果不必逐字节相同（实测差异在 `index.cjs` 与两个 `.map`），不一致时工作流只给出警告，不拦发布。
 
 ```bash
 # 一次完整发版
