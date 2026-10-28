@@ -2689,7 +2689,7 @@ defineMethod("transform", [
   "preserve"
 ], ({ inner }, isInner) => inner.toString(isInner));
 
-// node_modules/.pnpm/@deepseek-ai+dsh-home-paths@0.1.7-rc.2_@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/dsh-home-paths/lib/index.js
+// node_modules/.pnpm/@deepseek-ai+dsh-home-paths_f1763734af4cf16a3b16d81f3566007e/node_modules/@deepseek-ai/dsh-home-paths/lib/index.js
 var import_node_os = require("node:os");
 var import_node_path = require("node:path");
 var DSH_HOME_DIR_NAME = ".dsh";
@@ -2887,16 +2887,12 @@ function attachBodyTransform(res, proxyRes, transform) {
 
 // src/tokenretry.ts
 var import_node_http = __toESM(require("node:http"), 1);
-var DSH_COOKIE_PREFIX = "dsh-auth-";
-function isTokenExchangeCandidate(method) {
-  return method === void 0 || method === "GET";
+function isTokenExchangeCandidate(method, pathname) {
+  const isGet = method === void 0 || method === "GET";
+  return isGet && pathname === "/";
 }
-function hasCredential(req) {
-  const url = new URL(req.url ?? "/", "http://dsh-proxy.local");
-  if (url.searchParams.has("token")) return true;
-  const cookie = req.headers.cookie;
-  if (cookie === void 0) return false;
-  return cookie.split(";").some((entry) => entry.trim().startsWith(`${DSH_COOKIE_PREFIX}`));
+function carriesToken(url) {
+  return url.searchParams.has("token");
 }
 function withToken(url, token) {
   const parsed = new URL(url, "http://dsh-proxy.local");
@@ -2942,16 +2938,18 @@ var LaunchTokenAutoLogin = class {
    * Authenticate one client request with the launch token if it needs it.
    *
    * Mutates `req.url` in place when the token should ride along, then lets the
-   * caller forward as usual. Never completes a response itself: every failure
-   * mode (no token, non-GET, already credentialed, upstream unreachable,
-   * upstream answered) falls through to a plain forward, so the request is
-   * handled exactly as it would be without this feature.
+   * caller forward as usual. Only the index GET is considered, and the decision
+   * comes from the upstream's answer — never from the headers the client
+   * carries. Every other case (feature off, non-index request, token already
+   * present, upstream unreachable, upstream accepted the request) falls through
+   * to a plain forward, so the request is handled exactly as it would be
+   * without this feature.
    */
   async grant(req) {
     if (!this.enabled) return;
-    if (!isTokenExchangeCandidate(req.method)) return;
-    if (hasCredential(req)) return;
     const url = new URL(req.url ?? "/", "http://dsh-proxy.local");
+    if (!isTokenExchangeCandidate(req.method, url.pathname)) return;
+    if (carriesToken(url)) return;
     const browserHeaders = { ...req.headers };
     delete browserHeaders["content-length"];
     delete browserHeaders["transfer-encoding"];

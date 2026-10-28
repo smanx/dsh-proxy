@@ -4,8 +4,8 @@ import type { AddressInfo } from 'node:net'
 import { LaunchTokenAutoLogin } from '../src/tokenretry.ts'
 
 /**
- * These tests pin the two failure modes that made the feature silently inert
- * during development, both of which were swallowed by the same try/catch:
+ * These tests pin the failure modes that made the feature silently inert, each
+ * of which was swallowed by the same try/catch or looked correct on paper:
  *
  *  1. `'content-length': undefined` in a request-header object makes Node throw
  *     `Invalid value "undefined" for header "content-length"`, so the probe
@@ -13,8 +13,13 @@ import { LaunchTokenAutoLogin } from '../src/tokenretry.ts'
  *     feature were off.
  *  2. Detaching the host method (`const f = ctx.connection.authenticatedUrl`)
  *     loses `this`; the host reads `this.browserAuth` inside and throws.
+ *  3. Guessing authentication from the client's headers (`any cookie starting
+ *     with dsh-auth-` meant "already signed in") meant a stale, expired, or
+ *     foreign-named session cookie suppressed the exchange forever — the
+ *     lockout the feature exists to remove. The upstream's answer is the only
+ *     admissible input, which is also why a token may only ride on `GET /`.
  *
- * A regression in either shows up here as "no request arrived upstream".
+ * A regression in the first two shows up here as "no request arrived upstream".
  */
 const TOKEN = 'launch-token-abc123'
 
@@ -79,12 +84,45 @@ describe('LaunchTokenAutoLogin', () => {
     server.close()
   })
 
-  it('skips requests that already carry a DSH session cookie', async () => {
+  it('exchanges again when the client carries a stale DSH session cookie', async () => {
+    // The regression this pins: a browser holding ANY `dsh-auth-*` cookie used
+    // to be declared authenticated without asking the upstream, so a cookie that
+    // DSH does not accept — one named for a different upstream port, an expired
+    // one, one signed by another Harness home — was never re-exchanged. Every
+    // reload answered 401 and the device was locked out permanently, because the
+    // cookie that caused the lockout is what suppressed the only way out.
     const { server, port, seen } = await upstream(401)
     const auto = new LaunchTokenAutoLogin({ upstreamHost: '127.0.0.1', upstreamPort: port, launchToken: TOKEN })
-    const req = fakeRequest('/', { cookie: 'dsh-auth-ZGFzaA=v1.signed' })
+    const req = fakeRequest('/', { cookie: 'dsh-auth-ZGFzaA=v1.signed-but-stale' })
+    await auto.grant(req)
+    expect(req.url).toBe('/?token=launch-token-abc123')
+    expect(seen).toHaveLength(1)
+    server.close()
+  })
+
+  it('does not probe when the upstream already accepts the client’s cookie', async () => {
+    // A valid session costs one probe, not a token: the upstream answers 200, so
+    // the request is forwarded exactly as the client sent it.
+    const { server, port, seen } = await upstream(200)
+    const auto = new LaunchTokenAutoLogin({ upstreamHost: '127.0.0.1', upstreamPort: port, launchToken: TOKEN })
+    const req = fakeRequest('/', { cookie: 'dsh-auth-VPhEEcLKeqRDBoBalzN2Nm7CnfxKhLE00pKIDWxt1sw=v1.signed' })
     await auto.grant(req)
     expect(req.url).toBe('/')
+    expect(seen).toHaveLength(1)
+    server.close()
+  })
+
+  it('leaves non-index requests alone', async () => {
+    // DSH accepts a token at exactly `GET /`; on any other path it cannot mint a
+    // cookie, so the token must not be appended there (it would only leak the
+    // launch token into URLs, logs, and upstream access records).
+    const { server, port, seen } = await upstream(401)
+    const auto = new LaunchTokenAutoLogin({ upstreamHost: '127.0.0.1', upstreamPort: port, launchToken: TOKEN })
+    for (const path of ['/api/remote.mux', '/assets/app.js', '/session/abc', '/index.html']) {
+      const req = fakeRequest(path)
+      await auto.grant(req)
+      expect(req.url).toBe(path)
+    }
     expect(seen).toHaveLength(0)
     server.close()
   })

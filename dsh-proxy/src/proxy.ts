@@ -141,11 +141,11 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
   // way in — it never saw the token `dsh web` printed at startup.
   //
   // The fix is a single upstream probe the proxy performs BEFORE forwarding the
-  // client's own request. The probe reuses the client's exact method, path and
-  // headers, so whatever DSH answers is what the client would have received:
+  // client's own request. The probe reuses the client's exact path and headers,
+  // so whatever DSH answers is what the client would have received:
   //   - 200/303/404/... → forward the client's request untouched (streaming,
   //     no buffering) — this is the normal path and costs nothing extra.
-  //   - 401 → the client has no credential. Append `?token=...` and forward
+  //   - 401 → the client has no usable session. Append `?token=...` and forward
   //     the client's request; DSH mints the cookie and redirects to `./`, so
   //     the browser lands on the app and keeps the cookie for later requests.
   //
@@ -155,10 +155,12 @@ export function startLanProxy(options: LanProxyOptions): LanProxyHandle {
   // and then write a second response over a finished socket. Probing keeps the
   // decision entirely on the proxy's side of the wire.
   //
-  // The probe is skipped when the request already carries a credential (a
-  // `dsh-auth-*` cookie or a `token` query param), when it is not a GET, or
-  // when the upstream is unreachable — in every such case the request simply
-  // flows through as it would without this feature.
+  // The upstream's answer decides, never the headers the client carries, so a
+  // stale or foreign `dsh-auth-*` cookie cannot lock a device out (see
+  // src/tokenretry.ts for the full reasoning). Only the index GET is a
+  // candidate — that is where DSH accepts a token — and a request already
+  // carrying one is left exactly as the client sent it. Every other request,
+  // and an unreachable upstream, flows through as it would with the feature off.
   const autoLogin = new LaunchTokenAutoLogin({
     upstreamHost,
     upstreamPort,

@@ -12,19 +12,39 @@
  * performs by hand, on the client's behalf, before the client's own request is
  * forwarded:
  *
- *   1. probe the upstream with the client's exact method, path and headers;
- *   2. if it answers 401 and the client carries no credential, append
- *      `?token=...` and forward the client's request instead — DSH then mints
- *      the cookie and 303-redirects to `./`, so the browser lands on the app
- *      and keeps the cookie for every later request;
+ *   1. probe the upstream with the client's exact path and headers;
+ *   2. if it answers 401, append `?token=...` and forward the client's request
+ *      instead — DSH then mints the cookie and 303-redirects to `./`, so the
+ *      browser lands on the app and keeps the cookie for every later request;
  *   3. any other status means the request was fine, so it is forwarded as-is.
+ *
+ * Only the index request qualifies. DSH accepts the launch token at exactly
+ * `GET /` (its `authorizeIndex` requires `pathname === "/"` and a single
+ * `token`), so on any other path the token could not mint a cookie even if we
+ * sent it — and it would leak the token into URLs, logs, and upstream access
+ * records for nothing. Every other request therefore flows through untouched,
+ * exactly as it would with the feature off.
+ *
+ * The decision is made by ASKING THE UPSTREAM, never by guessing from the
+ * headers a client happens to carry. An earlier version skipped the probe when
+ * the request had any `dsh-auth-*` cookie, treating "carries a session cookie"
+ * as "carries a valid session". That is false: DSH's cookie is named
+ * `dsh-auth-<base64url(sha256(authority))>` — a name that changes with the
+ * upstream port — and its value expires after `cookieMaxAgeDays` or stops
+ * verifying when the signing record changes. A browser holding any such cookie
+ * (a stale one from an earlier upstream port, an expired one, one signed by a
+ * different Harness home) was then declared authenticated, never re-exchanged,
+ * and every reload answered `dsh web authentication required` — a permanent
+ * lockout that the feature could not recover from, because the cookie it was
+ * keyed on is exactly what kept the exchange from happening.
  *
  * WHY A PROBE INSTEAD OF RETRYING IN `proxyRes`: http-proxy 1.18 emits
  * `proxyRes` BEFORE it copies the upstream status/headers onto `res` and pipes
  * the body. A retry issued from that handler would still ship the 401 to the
  * browser and then write a second response over a finished socket. Probing puts
  * the whole decision on the proxy's side of the wire, where nothing has been
- * sent to the client yet.
+ * sent to the client yet. The probe is one body-less GET per index request, so
+ * the guess-free rule costs almost nothing.
  *
  * The token is read from the host Connection service (`ctx.connection
  * .authenticatedUrl()`) — the same value `dsh web` prints at startup. Nothing
@@ -55,29 +75,24 @@ export interface LaunchTokenAutoLoginOptions {
   log?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
 
-/** DSH mints its session cookie under this prefix (authority-suffixed). */
-const DSH_COOKIE_PREFIX = 'dsh-auth-'
-
 /**
  * Decide whether a client's request may be upgraded with the launch token.
  *
- * Only GET requests qualify: DSH accepts the token at exactly `GET /`, and
- * replaying a token onto a state-changing request would be both useless (DSH
- * rejects it) and wrong in principle.
+ * Only a GET of the index qualifies: that is the single request DSH accepts a
+ * token on, and the only one whose answer can mint the session cookie. See the
+ * header comment — replaying a token onto any other path is both useless (DSH
+ * rejects it) and wrong in principle, and would leak the token into URLs.
  */
-function isTokenExchangeCandidate(method: string | undefined): boolean {
-  return method === undefined || method === 'GET'
+function isTokenExchangeCandidate(method: string | undefined, pathname: string): boolean {
+  const isGet = method === undefined || method === 'GET'
+  return isGet && pathname === '/'
 }
 
-/** True when the request already carries a credential, so no exchange is needed. */
-function hasCredential(req: http.IncomingMessage): boolean {
-  const url = new URL(req.url ?? '/', 'http://dsh-proxy.local')
-  if (url.searchParams.has('token')) return true
-  // DSH's cookie name is `dsh-auth-<base64url(sha256(authority))>`, so a
-  // prefix match is the whole test — the authority suffix is not needed here.
-  const cookie = req.headers.cookie
-  if (cookie === undefined) return false
-  return cookie.split(';').some((entry) => entry.trim().startsWith(`${DSH_COOKIE_PREFIX}`))
+/** True when the URL already carries a token, so appending one would double it. */
+function carriesToken(url: URL): boolean {
+  // DSH rejects a request whose `token` appears more than once, so a URL that
+  // already carries one must be forwarded exactly as the client sent it.
+  return url.searchParams.has('token')
 }
 
 /** Append `?token=...` to a request URL, preserving any existing query. */
@@ -149,17 +164,19 @@ export class LaunchTokenAutoLogin {
    * Authenticate one client request with the launch token if it needs it.
    *
    * Mutates `req.url` in place when the token should ride along, then lets the
-   * caller forward as usual. Never completes a response itself: every failure
-   * mode (no token, non-GET, already credentialed, upstream unreachable,
-   * upstream answered) falls through to a plain forward, so the request is
-   * handled exactly as it would be without this feature.
+   * caller forward as usual. Only the index GET is considered, and the decision
+   * comes from the upstream's answer — never from the headers the client
+   * carries. Every other case (feature off, non-index request, token already
+   * present, upstream unreachable, upstream accepted the request) falls through
+   * to a plain forward, so the request is handled exactly as it would be
+   * without this feature.
    */
   async grant(req: http.IncomingMessage): Promise<void> {
     if (!this.enabled) return
-    if (!isTokenExchangeCandidate(req.method)) return
-    if (hasCredential(req)) return
-
     const url = new URL(req.url ?? '/', 'http://dsh-proxy.local')
+    if (!isTokenExchangeCandidate(req.method, url.pathname)) return
+    if (carriesToken(url)) return
+
     // Clone the client's headers so the probe presents the same credentials and
     // negotiation the real request would — but strip the framing headers a
     // body-less GET must not carry, and never answer from a shared cache: the

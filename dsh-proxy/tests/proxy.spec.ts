@@ -382,7 +382,7 @@ describe('launch-token auto-login (opt-in)', () => {
     expect(await second.text()).toContain('AUTHENTICATED')
   })
 
-  it('does not probe when the request already carries a cookie', async () => {
+  it('probes a cookie-carrying request but adds no token when the upstream accepts it', async () => {
     const upstream = await gatedUpstream()
     let requests = 0
     upstream.removeAllListeners('request')
@@ -401,8 +401,10 @@ describe('launch-token auto-login (opt-in)', () => {
       headers: { authorization: basic(), cookie: 'dsh-auth-ZGFzaA=v1.signed' },
     })
     expect(res.status).toBe(200)
-    // The client's own request only: no probe was needed.
-    expect(requests).toBe(1)
+    // A probe plus the client's own forwarded request. The probe is the point:
+    // the upstream's answer, not the cookie's presence, decides whether a token
+    // rides along — guessing from the header is what locked stale devices out.
+    expect(requests).toBe(2)
   })
 
   it('forwards a non-GET request untouched (no token exchange)', async () => {
