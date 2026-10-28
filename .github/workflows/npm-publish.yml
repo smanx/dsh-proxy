@@ -136,26 +136,21 @@ jobs:
             exit "$CODE"
           fi
 
-      - name: 发布后回读验证
+      - name: 发布后回读确认（仅报告，不失败）
         if: steps.already.outputs.exists == 'false'
         run: |
-          # 不查完整 packument：registry/CDN 会把新包建成前的 404 缓存几分钟
-          # （0.1.5 首发时就因此让 npm view 报了假 404）。/latest 是独立的缓存键，
-          # 发布后立即可读，所以用它重试。
-          for i in 1 2 3 4 5; do
+          # 发布步骤以 npm publish 的退出码为准——那一步成功就是发布成功。
+          # 这一步只是回读佐证。registry/CDN 会把新包的 404 缓存数分钟
+          # （0.1.5、0.1.6 两次实测，/latest 也可能滞后 50 秒以上），
+          # 所以这里无论结果如何都不让运行变红，最多发一条警告。
+          for i in 1 2 3 4 5 6; do
             if npm view "$PACKAGE@${{ steps.version.outputs.version }}" version dist.tarball \
                  --registry "$REGISTRY" --prefer-online >/dev/null 2>&1; then
               npm view "$PACKAGE@${{ steps.version.outputs.version }}" version name dist.tarball \
                 --registry "$REGISTRY" --prefer-online --json
               exit 0
             fi
-            echo "第 $i 次回读未命中（新包的 packument 传播中），10 秒后重试"
-            sleep 10
+            echo "第 $i 次回读未命中（新包的 packument 传播中），15 秒后重试"
+            sleep 15
           done
-          # 兜底：/latest 可读即视为发布成功，只把完整文档的传播延迟作为警告报告
-          if curl -fsS "$REGISTRY/$PACKAGE/latest" | grep -q "\"version\":\"${{ steps.version.outputs.version }}\""; then
-            echo "::warning::完整 packument 仍在传播（npm view 暂 404），但 /latest 已确认版本存在，发布成功"
-            exit 0
-          fi
-          echo "::error::发布后 50 秒内 /latest 与 npm view 都未确认到版本"
-          exit 1
+          echo "::warning::90 秒内 npm view 仍未看到 $PACKAGE@${{ steps.version.outputs.version }}，这是新包 packument 的传播延迟；发布本身已成功（npm publish 退出码 0），版本稍后可在 npmjs.com 与 /latest 端点确认"
