@@ -118,9 +118,22 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          # --access public：scoped 包默认 restricted，不写这条别人装不到。
-          # --provenance：绑定本次运行的 OIDC 身份，产出可验证的来源证明。
-          npm publish --access public --provenance --registry "$REGISTRY"
+          # 缺这个密钥时 npm 会拿一个空的 _authToken 去发，报的是一个和真正原因
+          # （Secret 没配）无关的 401，所以先把这种情况点名说清楚。
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::仓库密钥 NPM_TOKEN 不存在或为空（Settings → Secrets and variables → Actions），无法认证到 npm"
+            exit 1
+          fi
+          set +e
+          npm publish --access public --provenance --registry "$REGISTRY" 2>&1 | tee npm-publish.log
+          CODE=${PIPESTATUS[0]}
+          set -e
+          if [ "$CODE" -ne 0 ]; then
+            # 日志需要登录才能读，注解不需要：把 npm 的报错压成一行送到注解里。
+            ONE=$(tr '\n\r' '  ' < npm-publish.log | tr -s ' ' | cut -c1-480)
+            echo "::error::npm publish 失败（exit $CODE）：$ONE"
+            exit "$CODE"
+          fi
 
       - name: 发布后回读验证
         if: steps.already.outputs.exists == 'false'
