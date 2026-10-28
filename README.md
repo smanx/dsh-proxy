@@ -118,12 +118,29 @@ node -e "const ws=new WebSocket('ws://127.0.0.1:3091/api/events.mux',{headers:{A
 
 ## 自动发布
 
-推送 `v*` 标签（如 `v1.1.0`）即触发 GitHub Actions，**同时构建 Node 版和 Go 版**
-并发布到 GitHub Release（含 SHA256SUMS.txt 校验和）；也可在 Actions 页面手动触发：
+推送 `v*` 标签会同时触发两条独立的工作流，各自成败、互不依赖：
+
+| 工作流 | 产出 | 触发条件 |
+|---|---|---|
+| `.github/workflows/release.yml` | Node 版 + Go 版共 10 个单文件程序，发到 GitHub Release（含 SHA256SUMS.txt） | `v*` 标签，或 Actions 页面手动触发 |
+| `.github/workflows/npm-publish.yml` | 插件包 `@smanx/dsh-proxy` 发到 npm（带 provenance） | `v*` 标签，或手动触发 |
+
+发布 npm 前需要在仓库 **Settings → Secrets and variables → Actions** 里配一个名为 `NPM_TOKEN` 的 Secret：npmjs 上生成的 **Granular Access Token**（只授予本包 Read/Write）或 Automation token，它能绕过账号 2FA。
+
+版本号以仓库里的清单为准，工作流**只核对不改写**：标签 `v0.1.5` 必须与根 `package.json` 和 `dsh-proxy/package.json` 的 `version` 三者一致，否则直接失败——这是为了防止根清单与插件清单版本漂移（发布读的是根清单，`main` 指向 `dsh-proxy/lib/index.cjs`）。发布前工作流还会跑 `pnpm run check`，并用 `git diff --exit-code dsh-proxy/lib` 确认已提交的构建产物与源码同步。
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+# 一次完整发版
+pnpm run check                                   # 在 dsh-proxy/ 下，绿了再往下
+npm version 0.1.5 --no-git-tag-version           # 根清单；同时手动同步 dsh-proxy/package.json
+git commit -am "build: release 0.1.5" && git push
+git tag v0.1.5 && git push origin v0.1.5         # 两条工作流同时开始
 ```
 
-工作流见 `.github/workflows/release.yml`。
+已发布过的版本不会被重复发布（npm 不允许覆盖同一版本），重跑会跳过。发布成功后即可用包名安装：
+
+```bash
+dsh plugin --profile web add @smanx/dsh-proxy
+```
+
+桌面端在应用内「插件 → 添加插件」填 `@smanx/dsh-proxy`。注意插件管理器先问**它配置的注册表**，国内镜像对新版本有同步延迟，装不到时在安装对话框的「安装源」里改用 npm 官方源。

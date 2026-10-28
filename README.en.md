@@ -120,12 +120,29 @@ node -e "const ws=new WebSocket('ws://127.0.0.1:3091/api/events.mux',{headers:{A
 
 ## Releases
 
-Pushing a `v*` tag (e.g. `v1.1.0`) triggers GitHub Actions, which **builds both the Node and Go versions**
-and publishes them to the GitHub Release (with SHA256SUMS.txt checksums); you can also trigger it manually from the Actions page:
+Pushing a `v*` tag triggers two independent workflows, each succeeding or failing on its own:
+
+| Workflow | Produces | Trigger |
+|---|---|---|
+| `.github/workflows/release.yml` | the 10 standalone Node and Go binaries, attached to the GitHub Release (with SHA256SUMS.txt) | a `v*` tag, or a manual run |
+| `.github/workflows/npm-publish.yml` | the plugin package `@smanx/dsh-proxy` on npm (with provenance) | a `v*` tag, or a manual run |
+
+Publishing to npm needs one repository secret, **Settings → Secrets and variables → Actions → `NPM_TOKEN`**: a npmjs **Granular Access Token** scoped to this package with Read/Write (or an Automation token), which works around account 2FA.
+
+Versions come from the manifests — the workflow only checks them, never rewrites them: the tag `v0.1.5` must match `version` in the root `package.json` **and** in `dsh-proxy/package.json`, or the run fails. That guard exists because installs read the root manifest (its `main` points at `dsh-proxy/lib/index.cjs`), so the two must not drift. Before publishing, the workflow runs `pnpm run check` and verifies with `git diff --exit-code dsh-proxy/lib` that the committed bundle matches the source.
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+# A full release
+pnpm run check                                    # in dsh-proxy/ — only continue when green
+npm version 0.1.5 --no-git-tag-version            # root manifest; sync dsh-proxy/package.json too
+git commit -am "build: release 0.1.5" && git push
+git tag v0.1.5 && git push origin v0.1.5          # both workflows start
 ```
 
-Workflow: `.github/workflows/release.yml`.
+A version already on npm is never published twice (npm refuses to overwrite a version), so re-running the job just skips it. Once published, the package installs by name:
+
+```bash
+dsh plugin --profile web add @smanx/dsh-proxy
+```
+
+On the desktop app, use **Plugins → Add plugin** with `@smanx/dsh-proxy`. The plugin manager asks its configured registry first, and mainland mirrors lag on fresh versions — switch the install source to the official npm registry in the dialog if the package appears missing.
