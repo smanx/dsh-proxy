@@ -1,7 +1,7 @@
 {
   "name": "@smanx/dsh-proxy",
   "description": "LAN reverse proxy for the DSH web app: forwards the local DSH port to a second port with native Basic Auth and full HTTP + WebSocket forwarding.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "license": "MIT",
   "private": true,
   "type": "module",
