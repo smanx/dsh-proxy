@@ -105,12 +105,14 @@ Only `GET /?token=...` converts that token into a **signed 30-day cookie** (`dsh
 
 With `skipLaunchToken: true` the proxy performs **exactly the exchange a browser performs by hand**, on the client's behalf, before the client's own request is forwarded:
 
-1. the proxy probes the upstream with the client's own method, path and headers;
-2. if the upstream answers **401** and the client carries **no credential** (no `token` parameter, no `dsh-auth-*` cookie), the proxy appends `?token=...` to the client's URL;
+1. the proxy probes the upstream once, with the client's own path and headers (only `GET /` gets this far);
+2. if the upstream answers **401** — this client has no session DSH will honor — the proxy appends `?token=...` to the client's URL; a request already carrying a `token` is forwarded untouched (DSH rejects a repeated param);
 3. DSH then mints the cookie and **303-redirects to `./`** — the browser lands on the app and keeps the cookie for every later request;
 4. any other status means the request was fine, so it is forwarded as-is.
 
-**When it acts.** Only a `GET` that carries no token and no `dsh-auth-*` cookie can be upgraded. A request that already has a credential is forwarded untouched, so the proxy never appends a second token (DSH would reject that) and never replays a token onto a state-changing request.
+**The upstream's answer decides — the client's headers are never guessed from.** DSH names its session cookie `dsh-auth-<base64url(sha256(authority))>`, so a different upstream port means a different name, and the value expires after `cookieMaxAgeDays` (30 by default) or stops verifying when the signing record changes. An earlier build treated *any* `dsh-auth-*` cookie as "already signed in" and skipped the probe: a browser holding such a stale or foreign-named cookie was therefore declared authenticated, never re-exchanged, and ate a 401 on every reload — the toggle visibly on while the device could never get in. **The index request is now always probed; a 401 appends the token, DSH overwrites the stale cookie, and the device recovers by itself.**
+
+**It acts only on `GET /`.** That is the one path where DSH accepts a token (its `authorizeIndex` requires `pathname === "/"` and exactly one `token`). On any other path a token can neither mint a cookie nor fix anything — it would only leak the launch token into URLs, logs, and upstream access records. So `/api/*`, static assets, and non-GET requests pass through untouched. With the flag on, the whole extra cost per index request is one body-less GET upstream.
 
 **Why the feature costs nothing when off.** With the flag off (the default) the hot path is a single boolean property read per request — the probe never runs and the request is forwarded exactly as before.
 
