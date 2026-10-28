@@ -129,9 +129,10 @@ jobs:
           CODE=${PIPESTATUS[0]}
           set -e
           if [ "$CODE" -ne 0 ]; then
-            # 日志需要登录才能读，注解不需要：把 npm 的报错压成一行送到注解里。
-            ONE=$(tr '\n\r' '  ' < npm-publish.log | tr -s ' ' | cut -c1-480)
-            echo "::error::npm publish 失败（exit $CODE）：$ONE"
+            # 日志需要登录才能读，注解不需要。npm 的报错在输出末尾，且开头一大段是
+            # pack 通知，所以去掉通知再取尾部，压成一行注解。
+            TAIL=$(grep -v '^npm notice' npm-publish.log | tail -n 12 | tr '\n\r' '  ' | tr -s ' ' | cut -c1-460)
+            echo "::error::npm publish 失败（exit $CODE）：$TAIL"
             exit "$CODE"
           fi
 
